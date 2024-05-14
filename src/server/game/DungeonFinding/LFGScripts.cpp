@@ -29,7 +29,17 @@
 
 namespace lfg
 {
-    LFGPlayerScript::LFGPlayerScript() : PlayerScript("LFGPlayerScript") { }
+    LFGPlayerScript::LFGPlayerScript() :
+        PlayerScript("LFGPlayerScript",
+        {
+            PLAYERHOOK_ON_LEVEL_CHANGED,
+            PLAYERHOOK_ON_LOGOUT,
+            PLAYERHOOK_ON_LOGIN,
+            PLAYERHOOK_ON_BIND_TO_INSTANCE,
+            PLAYERHOOK_ON_MAP_CHANGED
+        })
+    {
+    }
 
     void LFGPlayerScript::OnLevelChanged(Player* player, uint8 /*oldLevel*/)
     {
@@ -116,6 +126,12 @@ namespace lfg
                 if (Player* member = itr->GetSource())
                     player->GetSession()->SendNameQueryOpcode(member->GetGUID());
 
+            //npcbot
+            for (GroupBotReference* itr = group->GetFirstBotMember(); itr != nullptr; itr = itr->next())
+                if (Creature* member = itr->GetSource())
+                    player->GetSession()->SendNameQueryOpcode(member->GetGUID());
+            //end npcbot
+
             if (group->IsLfgWithBuff())
                 player->CastSpell(player, LFG_SPELL_LUCK_OF_THE_DRAW, true);
         }
@@ -126,11 +142,22 @@ namespace lfg
             // Xinef: Destroy group if only one player is left
             if (Group* group = player->GetGroup())
                 if (group->GetMembersCount() <= 1u)
+                //npcbot
+                if (!player->GetSession()->PlayerLoading())
+                //end npcbot
                     group->Disband();
         }
     }
 
-    LFGGroupScript::LFGGroupScript() : GroupScript("LFGGroupScript")
+    LFGGroupScript::LFGGroupScript() :
+        GroupScript("LFGGroupScript",
+        {
+            GROUPHOOK_ON_ADD_MEMBER,
+            GROUPHOOK_ON_REMOVE_MEMBER,
+            GROUPHOOK_ON_DISBAND,
+            GROUPHOOK_ON_CHANGE_LEADER,
+            GROUPHOOK_ON_INVITE_MEMBER
+        })
     {
     }
 

@@ -66,6 +66,9 @@ struct DefaultTargetSelector : public Acore::unary_function<Unit*, bool>
             return false;
 
         if (m_playerOnly && (target->GetTypeId() != TYPEID_PLAYER))
+            //npcbot: allow to target bots
+            //if (!(target->IsNPCBot()))
+            //end npcbot
             return false;
 
         if (m_dist > 0.0f && !me->IsWithinCombatRange(target, m_dist))
@@ -380,7 +383,7 @@ public:
     SpellCastResult DoCastToAllHostilePlayers(uint32 spellid, bool triggered = false);
     SpellCastResult DoCastVictim(uint32 spellId, bool triggered = false);
     SpellCastResult DoCastAOE(uint32 spellId, bool triggered = false);
-    SpellCastResult DoCastRandomTarget(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false);
+    SpellCastResult DoCastRandomTarget(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false, bool withTank = true);
 
     // Cast spell on the top threat target, which may not be the current victim.
     SpellCastResult DoCastMaxThreat(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false);

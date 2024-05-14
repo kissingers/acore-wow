@@ -94,3 +94,6 @@ local.properties
 # ==================
 /.vs
 /out
+!/data/sql/custom/db_characters/
+!/data/sql/custom/db_world/
+
