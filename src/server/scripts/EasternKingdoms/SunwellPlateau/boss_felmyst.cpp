@@ -178,6 +178,8 @@ public:
 
         void JustDied(Unit* killer) override
         {
+            me->SetDisableGravity(false);
+            me->SendMovementFlagUpdate();
             BossAI::JustDied(killer);
             Talk(YELL_DEATH);
             instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_FOG_OF_CORRUPTION_CHARM);
