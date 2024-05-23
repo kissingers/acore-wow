@@ -224,6 +224,7 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature)
     _energyFraction = 0.f;
     _updateTimerMedium = 0;
     _updateTimerEx1 = urand(12000, 15000);
+    _updateTimerEx2 = urand(8000, 12000);
     checkAurasTimer = 0;
     roleTimer = 0;
     ordersTimer = 0;
@@ -251,6 +252,7 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature)
     botPet = nullptr;
     canUpdate = true;
     _duringTeleport = false;
+    _canAppearInWorld = false;
 
     teleHomeEvent = nullptr;
     teleFinishEvent = nullptr;
@@ -456,8 +458,6 @@ bool bot_ai::SetBotOwner(Player* newowner)
     _ownerGuid = newowner->GetGUID().GetCounter();
     _checkOwershipTimer = BotMgr::GetOwnershipExpireTime() ? CalculateOwnershipCheckTime() : 0;
 
-    ASSERT(me->IsInWorld());
-    AbortTeleport();
     return true;
 }
 //Check if should totally unlink from owner
@@ -620,8 +620,11 @@ void bot_ai::ResetBotAI(uint8 resetType)
         me->ReplaceAllUnitFlags2(UnitFlags2(me->GetCreatureTemplate()->unit_flags2));
     }
 
-    if (resetType == BOTAI_RESET_DISMISS && !IsTempBot())
-        EnableAllSpells();
+    if ((resetType == BOTAI_RESET_DISMISS || resetType == BOTAI_RESET_LOGOUT) && !IsTempBot())
+    {
+        EnableAllSpells(resetType == BOTAI_RESET_DISMISS);
+        InitRoles();
+    }
 
     //me->IsAIEnabled = true;
     canUpdate = true;
@@ -5019,6 +5022,18 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
 
     //Additional: aoe coming from spawned npcs
 
+    //Molten Core
+    if (unit->GetMapId() == 409)  
+    {
+        std::list<GameObject*> gListMC;
+        Acore::AllGameObjectsWithEntryInRange checkMC(unit, GAMEOBJECT_HOT_COAL, 60.f);  
+        Acore::GameObjectListSearcher<Acore::AllGameObjectsWithEntryInRange> searcherMC(unit, gListMC, checkMC);
+        Cell::VisitAllObjects(unit, searcherMC, 60.f);
+
+        float radius = 15.0f + DEFAULT_COMBAT_REACH;  
+        for (std::list<GameObject*>::const_iterator ci = gListMC.cbegin(); ci != gListMC.cend(); ++ci)
+            spots.push_back(AoeSpotsVec::value_type(*(*ci), radius));
+    }
     //Aucheai Crypts
     else if (unit->GetMapId() == 558)
     {
@@ -5037,7 +5052,7 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
         }
     }
     //The Eye of Eternity
-    if (unit->GetMapId() == 616 && unit->GetVehicle())
+    else if (unit->GetMapId() == 616 && unit->GetVehicle())
     {
         std::list<Creature*> cList;
         Acore::AllCreaturesOfEntryInRange check2(unit->GetVehicleBase(), CREATURE_EOE_STATIC_FIELD, 60.f);
@@ -6849,11 +6864,14 @@ void bot_ai::RemoveSpell(uint32 basespell)
 //    for (BotSpellMap::const_iterator itr = _spells.begin(); itr != _spells.end(); ++itr)
 //        itr->second->spellId = 0;
 //}
-void bot_ai::EnableAllSpells()
+void bot_ai::EnableAllSpells(bool save)
 {
-    NpcBotData* npcBotData = const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(me->GetEntry()));
-    npcBotData->disabled_spells.clear();
-    _saveDisabledSpells = true;
+    if (save)
+    {
+        NpcBotData* npcBotData = const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(me->GetEntry()));
+        npcBotData->disabled_spells.clear();
+        _saveDisabledSpells = true;
+    }
 
     for (BotSpellMap::const_iterator itr = _spells.begin(); itr != _spells.end(); ++itr)
         if (itr->second->enabled == false)
@@ -7874,14 +7892,7 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
 //GossipSelect
 bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32 sender, uint32 action)
 {
-    //if (!IsInBotParty(player))
-    //{
-    //    player->PlayerTalkClass->SendCloseGossip();
-    //    return true;
-    //}
-
-    if (!BotMgr::IsNpcBotModEnabled() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || IsDuringTeleport() ||
-        HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
+    if (!BotMgr::IsNpcBotModEnabled() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()))
     {
         player->PlayerTalkClass->SendCloseGossip();
@@ -15080,7 +15091,7 @@ void bot_ai::FindMaster()
     //totally free
     if (!_ownerGuid)
         return;
-    if (!_atHome || _evadeMode)
+    if (me->IsInWorld() && (!_atHome || _evadeMode))
         return;
     if (!BotMgr::IsClassEnabled(_botclass))
         return;
@@ -15093,8 +15104,6 @@ void bot_ai::FindMaster()
 
     //already have master
     if (!IAmFree())
-        return;
-    if (IsDuringTeleport())
         return;
     if (HasBotCommandState(BOT_COMMAND_UNBIND))
         return;
@@ -17143,14 +17152,44 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         }
     }
 
+    if (_updateTimerEx2 <= diff)
+    {
+        _updateTimerEx2 = urand(2000, 4000);
+
+        if (BotMgr::HideBotSpawns() && IAmFree() && !IsWanderer())
+        {
+            // !!bot may be out of world!!
+            Map* mymap = me->FindMap();
+            if (mymap)
+            {
+                std::list<Player*> plist;
+                Acore::AllWorldObjectsInExactRange pcheck(me, 15.0f, false);
+                Acore::PlayerListSearcher<decltype(pcheck)> searcher(me, plist, pcheck);
+                Cell::VisitWorldObjects(me, searcher, 20.f);
+                _canAppearInWorld = std::any_of(plist.cbegin(), plist.cend(), [](Player const* pl) { return pl->GetSession()->GetSecurity() > SEC_PLAYER; });
+                if (!CanAppearInWorld() && !IsDuringTeleport())
+                    BotMgr::TeleportBot(me, mymap, me, true);
+            }
+            else
+            {
+                _canAppearInWorld = false;
+                LOG_ERROR("npcbots", "Bot {} tried to check hide status but doesn't have a valid map set", me->GetEntry());
+            }
+        }
+        else
+            _canAppearInWorld = true;
+    }
+
     ReduceCD(diff);
 
     UpdateContestedPvP();
 
+    lastdiff = diff;
+
+    FindMaster();
+
     if (IsDuringTeleport())
         return false;
-
-    lastdiff = diff;
 
     if (_updateTimerMedium <= diff)
     {
@@ -17702,8 +17741,6 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (Wait())
         return false;
 
-    FindMaster();
-
     GenerateRand();
 
     if (CanBotAttackOnVehicle())
@@ -17862,6 +17899,7 @@ void bot_ai::CommonTimers(uint32 diff)
 
     if (_updateTimerMedium > diff)  _updateTimerMedium -= diff;
     if (_updateTimerEx1 > diff)     _updateTimerEx1 -= diff;
+    if (_updateTimerEx2 > diff)     _updateTimerEx2 -= diff;
 
     if (_saveDisabledSpellsTimer > diff) _saveDisabledSpellsTimer -= diff;
 }
@@ -17968,7 +18006,7 @@ void bot_ai::Evade()
             return;
         }
     }
-    else if (mapid != me->GetMapId() || _evadeCount >= 10 || me->GetDistance(pos) > float(SIZE_OF_GRIDS * 0.5f))
+    else if (mapid != me->GetMapId() || _evadeCount >= 10 || me->GetDistance(pos) > float(SIZE_OF_GRIDS * 0.5f) || !CanAppearInWorld())
     {
         if (!teleHomeEvent || !teleHomeEvent->IsActive())
         {
@@ -18179,6 +18217,10 @@ void bot_ai::GetNextEvadeMovePoint(Position& pos, bool& use_path) const
         mypos.m_positionZ = orig_z;
     pos.Relocate(mypos);
 }
+bool bot_ai::CanAppearInWorld() const
+{
+    return _canAppearInWorld;
+}
 void bot_ai::TeleportHomeStart(bool reset)
 {
     AbortTeleport();
@@ -18205,7 +18247,7 @@ void bot_ai::TeleportHome(bool reset)
 
     Map* map = sMapMgr->CreateBaseMap(mapid);
     ASSERT(!map->Instanceable(), map->GetDebugInfo().c_str());
-    BotMgr::TeleportBot(me, map, &pos, false, reset);
+    BotMgr::TeleportBot(me, map, &pos, false, reset, this);
 
     spawned = false;
     _evadeCount = 0;
@@ -18222,7 +18264,7 @@ bool bot_ai::FinishTeleport(bool reset)
     //1) Cannot teleport: master disappeared - return home
     if (IAmFree()/* || master->GetSession()->isLogingOut()*/)
     {
-        TeleportHomeStart(true);
+        TeleportHomeStart(!BotMgr::HideBotSpawns() || !CanAppearInWorld());
         _evadeMode = false;
 
         return false;
@@ -18239,6 +18281,9 @@ bool bot_ai::FinishTeleport(bool reset)
             Events.AddEvent(teleFinishEvent, Events.CalculateTime(5000));
             return;
         }
+
+        if (me->FindMap())
+            me->ResetMap();
 
         me->SetMap(map);
         if (master->GetTransport())
@@ -18635,7 +18680,7 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                     Creature const* mboss = ASSERT_NOTNULL(av->GetBGCreature(uint32(sptype)));
                     if (mboss->IsAlive() && !mboss->IsInCombat() && me->IsWithinDist2d(mboss, SIZE_OF_GRIDS * 0.75f))
                     {
-                        WanderNode const* mineWP = ASSERT_NOTNULL(WanderNode::FindInAreaWPs(mboss->GetAreaId(), mine_pred));
+                        WanderNode const* mineWP = ASSERT_NOTNULL(WanderNode::FindInMapWPs(mboss->GetMapId(), mine_pred));
                         if (!mineWP)
                             continue;
                         WanderNode const* mineLink = mineWP->GetLinks().front();
