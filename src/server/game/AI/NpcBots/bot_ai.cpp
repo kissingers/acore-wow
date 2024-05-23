@@ -18455,7 +18455,7 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                     auto const& pred = teamId == TEAM_ALLIANCE ? boss_room_wp_pred_h : boss_room_wp_pred_a;
                     Creature const* boss = ASSERT_NOTNULL(av->GetBGCreature(teamId == TEAM_ALLIANCE ? CRETYPE_BOSS_H : CRETYPE_BOSS_A));
                     WanderNode const* bossWP = ASSERT_NOTNULL(WanderNode::FindInAreaWPs(boss->GetAreaId(), pred));
-                    if (curNode->HasLink(bossWP))
+                    if (bossWP && curNode->HasLink(bossWP))
                     {
                         //Condition 3: team is ready OR boss is already engaged
                         bool team_ready = boss->IsInCombat();
@@ -18494,6 +18494,8 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                 {
                     auto const& pred = p.first == TEAM_ALLIANCE ? boss_room_wp_pred_a : boss_room_wp_pred_h;
                     WanderNode const* bossWP = ASSERT_NOTNULL(WanderNode::FindInAreaWPs(boss->GetAreaId(), pred));
+                    if (!bossWP)
+                        continue;
                     NodeList vlinks = curNode->GetShortestPathLinks(bossWP, links);
                     if (!vlinks.empty())
                         return vlinks.size() == 1u ? vlinks.front() : Acore::Containers::SelectRandomContainerElement(vlinks);
@@ -18679,6 +18681,8 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                     if (mboss->IsAlive() && !mboss->IsInCombat() && me->IsWithinDist2d(mboss, SIZE_OF_GRIDS * 0.75f))
                     {
                         WanderNode const* mineWP = ASSERT_NOTNULL(WanderNode::FindInMapWPs(mboss->GetMapId(), mine_pred));
+                        if (!mineWP)
+                            continue;
                         WanderNode const* mineLink = mineWP->GetLinks().front();
                         NodeList mlinks = curNode->GetShortestPathLinks(mineWP, links);
                         if (!mlinks.empty())
@@ -18737,6 +18741,8 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                 {
                     auto const& pred = teamId == TEAM_ALLIANCE ? boss_room_wp_pred_h : boss_room_wp_pred_a;
                     WanderNode const* bossWP = ASSERT_NOTNULL(WanderNode::FindInAreaWPs(boss->GetAreaId(), pred));
+                    if (!bossWP)
+                        continue;
                     NodeList vlinks = curNode->GetShortestPathLinks(bossWP->GetLinks().front(), links);
                     if (!vlinks.empty())
                         return vlinks.size() == 1u ? vlinks.front() : Acore::Containers::SelectRandomContainerElement(vlinks);
