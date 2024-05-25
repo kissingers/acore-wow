@@ -66,6 +66,7 @@ enum Summons
     CREATURE_DOOMFIRE_SPIRIT    = 18104,
     CREATURE_ANCIENT_WISP       = 17946,
     CREATURE_CHANNEL_TARGET     = 22418,
+    DISPLAY_ID_TRIGGER          = 11686
 };
 
 enum Events
@@ -143,77 +144,8 @@ struct npc_ancient_wisp : public ScriptedAI
             return;
 
     }
-
 private:
     InstanceScript* _instance;
-};
-
-//TODO: move to db?
-struct npc_doomfire : public ScriptedAI
-{
-    npc_doomfire(Creature* creature) : ScriptedAI(creature), _summons(me) { }
-
-    void Reset() override
-    {
-        _summons.DespawnAll();
-    }
-
-    void MoveInLineOfSight(Unit* /*who*/) override { }
-
-    void JustEngagedWith(Unit* /*who*/) override { }
-
-    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
-    {
-        damage = 0;
-    }
-
-    void JustSummoned(Creature* summoned) override
-    {
-        _summons.Summon(summoned);
-        if (summoned->GetEntry() == CREATURE_DOOMFIRE_SPIRIT)
-        {
-            me->GetMotionMaster()->MoveFollow(summoned, 0.0f, 0.0f);
-        }
-    }
-private:
-    SummonList _summons;
-};
-
-struct npc_doomfire_targetting : public ScriptedAI
-{
-    npc_doomfire_targetting(Creature* creature) : ScriptedAI(creature) { }
-
-    void Reset() override
-    {
-        _chaseTarget = nullptr;
-        ScheduleTimedEvent(5s, [&]
-        {
-            if (_chaseTarget)
-            {
-                me->GetMotionMaster()->MoveFollow(_chaseTarget, 0.0f, 0.0f);
-            }
-            else
-            {
-                Position randomPosition = me->GetRandomNearPosition(40.0f);
-                me->GetMotionMaster()->MovePoint(0, randomPosition);
-            }
-        }, 5s);
-    }
-
-    void MoveInLineOfSight(Unit* who) override
-    {
-        if (who->IsPlayer())
-        {
-            _chaseTarget = who;
-        }
-    }
-
-    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
-    {
-        damage = 0;
-    }
-private:
-    Unit* _chaseTarget;
 };
 
 struct boss_archimonde : public BossAI
@@ -255,6 +187,7 @@ struct boss_archimonde : public BossAI
         }
 
         ScheduleHealthCheckEvent(10, [&]{
+            scheduler.CancelAll();
             me->SetReactState(REACT_PASSIVE);
             DoCastProtection();
             Talk(SAY_ENRAGE);
@@ -279,13 +212,6 @@ struct boss_archimonde : public BossAI
                 DoCastVictim(SPELL_RED_SKY_EFFECT);
                 DoCastVictim(SPELL_HAND_OF_DEATH);
             }, 3s);
-            ScheduleTimedEvent(2500ms, [&]
-            {
-                if (!(me->GetVictim() && me->IsWithinMeleeRange(me->GetVictim())))
-                {
-                    DoCastRandomTarget(SPELL_FINGER_OF_DEATH);
-                }
-            }, 3500ms);
         });
     }
 
@@ -301,7 +227,7 @@ struct boss_archimonde : public BossAI
                     if (Creature* nordrassil = me->SummonCreature(CREATURE_CHANNEL_TARGET, nordrassilPosition, TEMPSUMMON_TIMED_DESPAWN, 1200000))
                     {
                         nordrassil->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        nordrassil->SetDisplayId(11686); //TODO: make enum
+                        nordrassil->SetDisplayId(DISPLAY_ID_TRIGGER);
                         DoCast(nordrassil, SPELL_DRAIN_WORLD_TREE);
                         _isChanneling = true;
                         nordrassil->AI()->DoCast(me, SPELL_DRAIN_WORLD_TREE_2, true);
@@ -332,11 +258,11 @@ struct boss_archimonde : public BossAI
         ScheduleTimedEvent(25s, 35s, [&]
         {
             Talk(SAY_AIR_BURST);
-            DoCastRandomTarget(SPELL_AIR_BURST);
+            DoCastRandomTarget(SPELL_AIR_BURST, 0, 0.0f, true, false, false);
         }, 25s, 40s);
         ScheduleTimedEvent(25s, 35s, [&]
         {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false))
             {
                 DoCastDoomFire(target);
             }
@@ -365,6 +291,26 @@ struct boss_archimonde : public BossAI
                 }
             }
         }, 5s);
+        ScheduleTimedEvent(5000ms, [&]
+        {
+            bool noPlayersInRange = true;
+            if (Map* map = me->GetMap())
+            {
+                map->DoForAllPlayers([&noPlayersInRange, this](Player* player)
+                {
+                    if (me->IsWithinMeleeRange(player))
+                    {
+                        noPlayersInRange = false;
+                        return false;
+                    }
+                    return true;
+                });
+            }
+            if (noPlayersInRange)
+            {
+                DoCastRandomTarget(SPELL_FINGER_OF_DEATH);
+            }
+        }, 3500ms);
 
         instance->SetData(DATA_SPAWN_WAVES, 1);
     }
@@ -427,17 +373,21 @@ struct boss_archimonde : public BossAI
         {
             summoned->AI()->AttackStart(me);
         }
+        else if (summoned->GetEntry() == CREATURE_DOOMFIRE)
+        {
+            summoned->CastSpell(summoned, SPELL_DOOMFIRE_SPAWN);
+            summoned->CastSpell(summoned, SPELL_DOOMFIRE, true, 0, 0, me->GetGUID());
+        }
+        else if (summoned->GetEntry() == CREATURE_DOOMFIRE_SPIRIT)
+        {
+            Position randomPosition = summoned->GetRandomNearPosition(40.0f);
+            summoned->GetMotionMaster()->MovePoint(0, randomPosition);
+        }
         else
         {
             summoned->SetFaction(me->GetFaction()); //remove?
             summoned->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             summoned->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-        }
-
-        if (summoned->GetEntry() == CREATURE_DOOMFIRE)
-        {
-            summoned->CastSpell(summoned, SPELL_DOOMFIRE_SPAWN);
-            summoned->CastSpell(summoned, SPELL_DOOMFIRE, true, 0, 0, me->GetGUID());
         }
     }
 
@@ -447,12 +397,16 @@ struct boss_archimonde : public BossAI
         Talk(SAY_DOOMFIRE);
         Position spiritPosition = { target->GetPositionX() + DOOMFIRE_OFFSET,  target->GetPositionY() + DOOMFIRE_OFFSET, target->GetPositionZ(), 0.0f };
         Position doomfirePosition = { target->GetPositionX() - DOOMFIRE_OFFSET,  target->GetPositionY() - DOOMFIRE_OFFSET, target->GetPositionZ(), 0.0f };
-        if (Unit* doomfireSpirit = me->SummonCreature(CREATURE_DOOMFIRE_SPIRIT, spiritPosition, TEMPSUMMON_TIMED_DESPAWN, 27000))
+        if (Creature* doomfireSpirit = me->SummonCreature(CREATURE_DOOMFIRE_SPIRIT, spiritPosition, TEMPSUMMON_TIMED_DESPAWN, 27000))
         {
-            if (Unit* doomfire = me->SummonCreature(CREATURE_DOOMFIRE, doomfirePosition, TEMPSUMMON_TIMED_DESPAWN, 27000))
+            if (Creature* doomfire = me->SummonCreature(CREATURE_DOOMFIRE, doomfirePosition, TEMPSUMMON_TIMED_DESPAWN, 27000))
             {
                 doomfireSpirit->SetVisible(false);
                 doomfire->SetVisible(false);
+                doomfireSpirit->SetWalk(false);
+                doomfireSpirit->SetReactState(REACT_PASSIVE);
+                doomfire->SetReactState(REACT_PASSIVE);
+                doomfire->GetMotionMaster()->MoveFollow(doomfireSpirit, 0.0f, 0.0f);
             }
         }
     }
@@ -553,8 +507,6 @@ void AddSC_boss_archimonde()
     RegisterSpellScript(spell_hand_of_death);
     RegisterSpellScript(spell_finger_of_death);
     RegisterHyjalAI(boss_archimonde);
-    RegisterHyjalAI(npc_doomfire);
-    RegisterHyjalAI(npc_doomfire_targetting);
     RegisterHyjalAI(npc_ancient_wisp);
 }
 

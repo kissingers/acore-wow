@@ -48,12 +48,17 @@ struct boss_kazrogal : public BossAI
 public:
     boss_kazrogal(Creature* creature) : BossAI(creature, DATA_KAZROGAL)
     {
-        _recentlySpoken = false;
-        _markCounter = 0;
         scheduler.SetValidator([this]
             {
                 return !me->HasUnitState(UNIT_STATE_CASTING);
             });
+    }
+
+    void Reset() override
+    {
+        _recentlySpoken = false;
+        _markCounter = 0;
+        BossAI::Reset();
     }
 
     void JustEngagedWith(Unit * who) override
@@ -87,6 +92,7 @@ public:
 
     Milliseconds GetMarkRepeatTimer()
     {
+        ++_markCounter;
         Milliseconds timer = 45000ms - (5000ms * _markCounter);
         if (timer <= 10000ms)
             return 10000ms;
@@ -160,7 +166,7 @@ public:
         {
             Unit* target = GetTarget();
 
-            if (target->GetPower(POWER_MANA) == 0)
+            if ((int32)target->GetPower(POWER_MANA) < aurEff->GetBaseAmount())
             {
                 target->CastSpell(target, SPELL_MARK_DAMAGE, true, nullptr, aurEff);
                 // Remove aura
