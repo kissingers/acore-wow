@@ -156,6 +156,8 @@ public:
             {
                 case GO_DOOR_HALAZZI:
                     HalazziDoorGUID = go->GetGUID();
+                    if (GetBossState(DATA_HALAZZIEVENT) == DONE)
+                        go->SetGoState(GO_STATE_ACTIVE);
                     break;
                 case GO_GATE_ZULJIN:
                     ZulJinGateGUID = go->GetGUID();
@@ -302,8 +304,12 @@ public:
                     break;
                 case DATA_HALAZZIEVENT:
                     m_auiEncounter[DATA_HALAZZIEVENT] = data;
-                    HandleGameObject(HalazziDoorGUID, data != IN_PROGRESS);
-                    if (data == DONE) SummonHostage(3);
+                    //HandleGameObject(HalazziDoorGUID, data != IN_PROGRESS);
+                    if (data == DONE)
+                    {
+                        SummonHostage(3);
+                        HandleGameObject(HalazziDoorGUID, true);
+                    }
                     SaveToDB();
                     break;
                 case DATA_HEXLORDEVENT:
