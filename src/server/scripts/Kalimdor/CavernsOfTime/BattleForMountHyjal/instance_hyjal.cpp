@@ -436,7 +436,7 @@ public:
                     if (_bossWave && (GetBossState(_bossWave) != DONE))
                         SetBossState(_bossWave, NOT_STARTED);
 
-                    _scheduler.Schedule(300s, [this](TaskContext)
+                    _scheduler.Schedule(118s, [this](TaskContext)
                         {
                             for (ObjectGuid const& guid : _baseAlliance)
                                 if (Creature* creature = instance->GetCreature(guid))
@@ -462,7 +462,7 @@ public:
                     if (_bossWave && (GetBossState(_bossWave) != DONE))
                         SetBossState(_bossWave, NOT_STARTED);
 
-                    _scheduler.Schedule(300s, [this](TaskContext)
+                    _scheduler.Schedule(118s, [this](TaskContext)
                         {
                             for (ObjectGuid const& guid : _baseHorde)
                                 if (Creature* creature = instance->GetCreature(guid))
@@ -483,7 +483,7 @@ public:
                     if (Creature* archimonde = GetCreature(DATA_ARCHIMONDE))
                         archimonde->DespawnOrUnsummon();
 
-                    _scheduler.Schedule(300s, [this](TaskContext)
+                    _scheduler.Schedule(118s, [this](TaskContext)
                         {
                             for (ObjectGuid const& guid : _baseNightElf)
                                 if (Creature* creature = instance->GetCreature(guid))
