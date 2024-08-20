@@ -103,20 +103,6 @@ enum Misc
     EVENT_KILL_TALK                     = 100
 };
 
-struct HammerOfJusticeSelector
-{
-public:
-    HammerOfJusticeSelector(Unit* me) : _me(me) { }
-
-    bool operator()(Unit const* target) const
-    {
-        return target && target->GetTypeId() == TYPEID_PLAYER && _me->IsInRange(target, 10.0f, 40.0f, true);
-    }
-
-private:
-    Unit const* _me;
-};
-
 class VerasEnvenom : public BasicEvent
 {
 public:
@@ -339,12 +325,13 @@ public:
                     events.ScheduleEvent(EVENT_SPELL_CONSECRATION, 30000);
                     break;
                 case EVENT_SPELL_HAMMER_OF_JUSTICE:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, HammerOfJusticeSelector(me)))
-                    {
-                        me->CastSpell(target, SPELL_HAMMER_OF_JUSTICE, false);
-                        events.ScheduleEvent(EVENT_SPELL_HAMMER_OF_JUSTICE, 20000);
-                        break;
-                    }
+                    if (Unit* target = me->GetVictim())
+                        if (target->IsPlayer() && me->IsInRange(target, 10.0f, 40.0f, true))
+                        {
+                            me->CastSpell(target, SPELL_HAMMER_OF_JUSTICE);
+                            events.ScheduleEvent(EVENT_SPELL_HAMMER_OF_JUSTICE, 20s);
+                            break;
+                        }
                     events.ScheduleEvent(EVENT_SPELL_HAMMER_OF_JUSTICE, 0);
                     break;
                 case EVENT_SPELL_SEAL:
@@ -713,4 +700,3 @@ void AddSC_boss_illidari_council()
     RegisterSpellScript(spell_illidari_council_judgement);
     RegisterSpellScript(spell_illidari_council_deadly_strike_aura);
 }
-
