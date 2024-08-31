@@ -379,4 +379,3 @@ void AddSC_instance_serpentshrine_cavern()
     RegisterSerpentShrineAI(npc_rancid_mushroom);
     RegisterSpellScript(spell_rancid_spore_cloud);
 }
-
