@@ -196,10 +196,9 @@ struct boss_high_astromancer_solarian : public BossAI
                         }
                     }
                 });
-            }).Schedule(23s, [this](TaskContext)
+            }).Schedule(21s, [this](TaskContext)
             {
                 me->SetReactState(REACT_AGGRESSIVE);
-                summons.DoForAllSummons([&](WorldObject* summon)
                 {
                     if (Creature* light = summon->ToCreature())
                     {
@@ -208,6 +207,7 @@ struct boss_high_astromancer_solarian : public BossAI
                             light->RemoveAllAuras();
                             if (light->GetDistance2d(CENTER_X, CENTER_Y) < 20.0f)
                             {
+                                me->SetReactState(REACT_AGGRESSIVE);
                                 me->RemoveAllAuras();
                                 me->SetModelVisible(true);
                             }
