@@ -262,8 +262,7 @@ public:
             {
             case DATA_GONGEVENT:
                 m_auiEncounter[DATA_GONGEVENT] = data;
-                if (data == IN_PROGRESS)
-                else if (data == DONE)
+                if (data == DONE)
                     QuestMinute = 21;
                 break;
             case DATA_NALORAKKEVENT:
