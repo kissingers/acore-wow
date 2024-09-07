@@ -38,6 +38,10 @@
 #include <G3D/CoordinateFrame.h>
 #include <G3D/Quat.h>
 
+//npcbot
+#include "botmgr.h"
+//end npcbot
+
 GameObject::GameObject() : WorldObject(false), MovableMapObject(),
     m_model(nullptr), m_goValue(), m_AI(nullptr)
 {
@@ -1818,7 +1822,40 @@ void GameObject::Use(Unit* user)
 
         case GAMEOBJECT_TYPE_SUMMONING_RITUAL:              //18
             {
-                if (!user->IsPlayer())
+                //npcbot
+                if (user->IsNPCBot())
+                {
+                    GameObjectTemplate const* info = GetGOInfo();
+                    Player* botOwner = user->ToCreature()->GetBotOwner();
+                    spellCaster = botOwner;
+
+                    if (info->summoningRitual.animSpell)
+                    {
+                        user->CastSpell(user, info->summoningRitual.animSpell, true);
+                        triggered = true;
+                    }
+
+                    spellId = info->summoningRitual.spellId;
+                    if (spellId == 62330)
+                    {
+                        spellId = 61993;
+                        triggered = true;
+                    }
+                    if (!info->summoningRitual.ritualPersistent)
+                        SetLootState(GO_JUST_DEACTIVATED);
+                    else
+                    {
+                        // reset ritual for this GO
+                        m_ritualOwnerGUID.Clear();
+                        m_unique_users.clear();
+                        m_usetimes = 0;
+                    }
+
+                    break;
+                }
+                //end npcbot
+
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -1885,6 +1922,28 @@ void GameObject::Use(Unit* user)
 
                 if (info->spellcaster.partyOnly)
                 {
+                    //npcbot
+                    //if (!caster && GetOwnerGUID().IsCreature() && user->IsPlayer())
+                    //{
+                    //    if (Creature const* bot = user->ToPlayer()->GetBotMgr()->GetBot(GetOwnerGUID()))
+                    //        caster = user->ToPlayer();
+                    //    else if (Group const* group = user->ToPlayer()->GetGroup())
+                    //    {
+                    //        for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+                    //        {
+                    //            if (Player const* player = itr->GetSource())
+                    //            {
+                    //                bot = player->GetBotMgr()->GetBot(GetOwnerGUID());
+                    //                if (bot)
+                    //                {
+                    //                    caster = player;
+                    //                    break;
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    //end npcbot
                     if (!user->IsPlayer())
                         return;
                     if (ObjectGuid ownerGuid = GetOwnerGUID())
@@ -1934,7 +1993,21 @@ void GameObject::Use(Unit* user)
 
         case GAMEOBJECT_TYPE_FLAGSTAND:                     // 24
             {
-                if (!user->IsPlayer())
+                //npcbot
+                if (user->IsNPCBot())
+                {
+                    Creature* bot = user->ToCreature();
+                    if (Battleground* botbg = bot->GetBotBG())
+                    {
+                        bot->RemoveAurasByType(SPELL_AURA_MOD_STEALTH);
+                        bot->RemoveAurasByType(SPELL_AURA_MOD_INVISIBILITY);
+                        botbg->EventBotClickedOnFlag(bot, this);
+                        return;
+                    }
+                }
+                //end npcbot
+
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -1978,7 +2051,39 @@ void GameObject::Use(Unit* user)
 
         case GAMEOBJECT_TYPE_FLAGDROP:                      // 26
             {
-                if (!user->IsPlayer())
+                //npcbot
+                if (user->IsNPCBot())
+                {
+                    Creature* bot = user->ToCreature();
+                    if (Battleground* botbg = bot->GetBotBG())
+                    {
+                        bot->RemoveAurasByType(SPELL_AURA_MOD_STEALTH);
+                        bot->RemoveAurasByType(SPELL_AURA_MOD_INVISIBILITY);
+
+                        if (GameObjectTemplate const* bgoinfo = GetGOInfo())
+                        {
+                            switch (bgoinfo->entry)
+                            {
+                                case 179785:                        // Silverwing Flag
+                                case 179786:                        // Warsong Flag
+                                    if (botbg->GetBgTypeID(true) == BATTLEGROUND_WS)
+                                        botbg->EventBotClickedOnFlag(bot, this);
+                                    break;
+                                case 184142:                        // Netherstorm Flag
+                                    if (botbg->GetBgTypeID(true) == BATTLEGROUND_EY)
+                                        botbg->EventBotClickedOnFlag(bot, this);
+                                    break;
+                            }
+                        }
+                        //this cause to call return, all flags must be deleted here!!
+                        spellId = 0;
+                        Delete();
+                        break;
+                    }
+                }
+                //end npcbot
+
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
