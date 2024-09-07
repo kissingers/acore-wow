@@ -165,6 +165,8 @@ class BotDataMgr
         static void LoadNpcBotGroupData();
         static void LoadNpcBotGearStorage();
 
+        static void DeleteOldLogs();
+
         static void AddNpcBotData(uint32 entry, uint32 roles, uint8 spec, uint32 faction);
         static NpcBotData const* SelectNpcBotData(uint32 entry);
         static void UpdateNpcBotData(uint32 entry, NpcBotDataUpdateType updateType, void* data = nullptr);
@@ -189,6 +191,7 @@ class BotDataMgr
         static ObjectGuid GetNPCBotGuid(uint32 entry);
         static std::vector<uint32> GetExistingNPCBotIds();
         static uint8 GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask = 0);
+        static uint8 GetAccountBotsCount(uint32 account_id);
 
         static void DespawnWandererBot(uint32 entry);
         static void LoadWanderMap(bool reload = false);

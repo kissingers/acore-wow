@@ -20,7 +20,6 @@
 #include "CellImpl.h"
 #include "CreatureAISelector.h"
 #include "DisableMgr.h"
-#include "DynamicTree.h"
 #include "GameObjectAI.h"
 #include "GameObjectModel.h"
 #include "GameTime.h"
@@ -208,6 +207,10 @@ void GameObject::CheckRitualList()
     if (m_unique_users.empty())
         return;
 
+    uint32 animSpell = GetGOInfo()->summoningRitual.animSpell;
+    if (!animSpell)
+        animSpell = GetSpellId();
+
     for (GuidSet::iterator itr = m_unique_users.begin(); itr != m_unique_users.end();)
     {
         if (*itr == GetOwnerGUID())
@@ -219,7 +222,7 @@ void GameObject::CheckRitualList()
         bool erase = true;
         if (Player* channeler = ObjectAccessor::GetPlayer(*this, *itr))
             if (Spell* spell = channeler->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
-                if (spell->m_spellInfo->Id == GetGOInfo()->summoningRitual.animSpell)
+                if (spell->m_spellInfo->Id == animSpell)
                     erase = false;
 
         if (erase)
@@ -231,9 +234,12 @@ void GameObject::CheckRitualList()
 
 void GameObject::ClearRitualList()
 {
-    uint32 animSpell = GetGOInfo()->summoningRitual.animSpell;
-    if (!animSpell || m_unique_users.empty())
+    if (m_unique_users.empty())
         return;
+
+    uint32 animSpell = GetGOInfo()->summoningRitual.animSpell;
+    if (!animSpell)
+        animSpell = GetSpellId();
 
     for (ObjectGuid const& guid : m_unique_users)
     {
@@ -410,7 +416,7 @@ bool GameObject::Create(ObjectGuid::LowType guidlow, uint32 name_id, Map* map, u
         }
     }
 
-    LastUsedScriptID = GetGOInfo()->ScriptId;
+    LastUsedScriptID = GetScriptId();
     AIM_Initialize();
 
     if (uint32 linkedEntry = GetGOInfo()->GetLinkedGameObjectEntry())
@@ -508,7 +514,7 @@ void GameObject::Update(uint32 diff)
                             {
                                 // splash bobber (bobber ready now)
                                 Unit* caster = GetOwner();
-                                if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+                                if (caster && caster->IsPlayer())
                                 {
                                     SetGoState(GO_STATE_ACTIVE);
                                     ReplaceAllGameObjectFlags(GO_FLAG_NODESPAWN);
@@ -531,18 +537,15 @@ void GameObject::Update(uint32 diff)
                             if (GameTime::GetGameTimeMS().count() < m_cooldownTime)
                                 return;
                             GameObjectTemplate const* info = GetGOInfo();
-                            if (info->summoningRitual.animSpell)
-                            {
-                                // xinef: if ritual requires animation, ensure that all users performs channel
-                                CheckRitualList();
-                            }
+
+                            CheckRitualList();
+
                             if (GetUniqueUseCount() < info->summoningRitual.reqParticipants)
                             {
                                 SetLootState(GO_READY);
                                 return;
                             }
 
-                            bool triggered = info->summoningRitual.animSpell;
                             Unit* owner = GetOwner();
                             Unit* spellCaster = owner ? owner : ObjectAccessor::GetPlayer(*this, m_ritualOwnerGUID);
                             if (!spellCaster)
@@ -558,7 +561,6 @@ void GameObject::Update(uint32 diff)
                                 // spell have reagent and mana cost but it not expected use its
                                 // it triggered spell in fact casted at currently channeled GO
                                 spellId = 61993;
-                                triggered = true;
                             }
 
                             // Cast casterTargetSpell at a random GO user
@@ -588,7 +590,7 @@ void GameObject::Update(uint32 diff)
                                 SetLootState(GO_READY);
 
                             ClearRitualList();
-                            spellCaster->CastSpell(spellCaster, spellId, triggered);
+                            spellCaster->CastSpell(spellCaster, spellId, true);
                             return;
                         }
                     case GAMEOBJECT_TYPE_CHEST:
@@ -636,7 +638,7 @@ void GameObject::Update(uint32 diff)
                             case GAMEOBJECT_TYPE_FISHINGNODE:   //  can't fish now
                                 {
                                     Unit* caster = GetOwner();
-                                    if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+                                    if (caster && caster->IsPlayer())
                                     {
                                         caster->ToPlayer()->RemoveGameObject(this, false);
 
@@ -1144,6 +1146,7 @@ bool GameObject::LoadGameObjectFromDB(ObjectGuid::LowType spawnId, Map* map, boo
     GOState go_state = data->go_state;
     uint32 artKit = data->artKit;
 
+    m_goData = data;
     m_spawnId = spawnId;
 
     if (!Create(map->GenerateLowGuid<HighGuid::GameObject>(), entry, map, phaseMask, x, y, z, ang, data->rotation, animprogress, go_state, artKit))
@@ -1178,8 +1181,6 @@ bool GameObject::LoadGameObjectFromDB(ObjectGuid::LowType spawnId, Map* map, boo
         m_respawnDelayTime = -data->spawntimesecs;
         m_respawnTime = 0;
     }
-
-    m_goData = data;
 
     if (addToMap && !GetMap()->AddToMap(this))
         return false;
@@ -1283,7 +1284,7 @@ bool GameObject::IsAlwaysVisibleFor(WorldObject const* seer) const
         Unit* owner = GetOwner();
         if (owner)
         {
-            if (seer->isType(TYPEMASK_UNIT) && owner->IsFriendlyTo(seer->ToUnit()))
+            if (seer->IsUnit() && owner->IsFriendlyTo(seer->ToUnit()))
                 return true;
         }
     }
@@ -1524,7 +1525,7 @@ void GameObject::Use(Unit* user)
             return;
         case GAMEOBJECT_TYPE_QUESTGIVER:                    //2
             {
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -1553,7 +1554,7 @@ void GameObject::Use(Unit* user)
                 if (!info)
                     return;
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 if (ChairListSlots.empty())        // this is called once at first chair use to make list of available slots
@@ -1638,7 +1639,7 @@ void GameObject::Use(Unit* user)
                 if (HasGameObjectFlag(GO_FLAG_IN_USE))
                     return;
 
-                if (user->GetTypeId() == TYPEID_PLAYER)
+                if (user->IsPlayer())
                 {
                     Player* player = user->ToPlayer();
 
@@ -1720,7 +1721,7 @@ void GameObject::Use(Unit* user)
                 if (!info)
                     return;
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -1854,7 +1855,7 @@ void GameObject::Use(Unit* user)
                 }
                 //end npcbot
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -1867,7 +1868,7 @@ void GameObject::Use(Unit* user)
 
                 if (owner)
                 {
-                    if (owner->GetTypeId() != TYPEID_PLAYER)
+                    if (!owner->IsPlayer())
                         return;
 
                     // accept only use by player from same group as owner, excluding owner itself (unique use already added in spell effect)
@@ -1887,17 +1888,18 @@ void GameObject::Use(Unit* user)
                         return;
                 }
 
+                CheckRitualList();
+
+                if (GetUniqueUseCount() == info->summoningRitual.reqParticipants)
+                    return;
+
                 if (info->summoningRitual.animSpell)
-                {
-                    // xinef: if ritual requires animation, ensure that all users performs channel
-                    CheckRitualList();
-
-                    // xinef: all participants found
-                    if (GetUniqueUseCount() == info->summoningRitual.reqParticipants)
-                        return;
-
                     player->CastSpell(player, info->summoningRitual.animSpell, true);
-                }
+                else
+                    player->CastSpell(player, GetSpellId(),
+                        TriggerCastFlags(TRIGGERED_IGNORE_EFFECTS
+                                       | TRIGGERED_IGNORE_POWER_AND_REAGENT_COST
+                                       | TRIGGERED_CAST_DIRECTLY));
 
                 AddUniqueUse(player);
 
@@ -1905,11 +1907,9 @@ void GameObject::Use(Unit* user)
                 if (GetUniqueUseCount() == info->summoningRitual.reqParticipants)
                 {
                     SetLootState(GO_NOT_READY);
-                    // can be deleted now, if
-                    if (!info->summoningRitual.animSpell)
-                        m_cooldownTime = 0;
-                    else // channel ready, maintain this
-                        m_cooldownTime = GameTime::GetGameTimeMS().count() + 5 * IN_MILLISECONDS;
+
+                    // channel ready, maintain this
+                    m_cooldownTime = GameTime::GetGameTimeMS().count() + 5 * IN_MILLISECONDS;
                 }
 
                 return;
@@ -1922,52 +1922,60 @@ void GameObject::Use(Unit* user)
 
                 if (info->spellcaster.partyOnly)
                 {
-                    Player const* caster = ObjectAccessor::FindConnectedPlayer(GetOwnerGUID());
                     //npcbot
-                    if (!caster && GetOwnerGUID().IsCreature() && user->IsPlayer())
+                    //if (!caster && GetOwnerGUID().IsCreature() && user->IsPlayer())
+                    //{
+                    //    if (Creature const* bot = user->ToPlayer()->GetBotMgr()->GetBot(GetOwnerGUID()))
+                    //        caster = user->ToPlayer();
+                    //    else if (Group const* group = user->ToPlayer()->GetGroup())
+                    //    {
+                    //        for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+                    //        {
+                    //            if (Player const* player = itr->GetSource())
+                    //            {
+                    //                bot = player->GetBotMgr()->GetBot(GetOwnerGUID());
+                    //                if (bot)
+                    //                {
+                    //                    caster = player;
+                    //                    break;
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    //end npcbot
+                    if (!user->IsPlayer())
+                        return;
+                    if (ObjectGuid ownerGuid = GetOwnerGUID())
                     {
-                        if (Creature const* bot = user->ToPlayer()->GetBotMgr()->GetBot(GetOwnerGUID()))
-                            caster = user->ToPlayer();
-                        else if (Group const* group = user->ToPlayer()->GetGroup())
+                        if (user->GetGUID() != ownerGuid)
                         {
-                            for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
-                            {
-                                if (Player const* player = itr->GetSource())
-                                {
-                                    bot = player->GetBotMgr()->GetBot(GetOwnerGUID());
-                                    if (bot)
-                                    {
-                                        caster = player;
-                                        break;
-                                    }
-                                }
-                            }
+                            Group* group = user->ToPlayer()->GetGroup();
+                            if (!group)
+                                return;
+                            if (!group->IsMember(ownerGuid))
+                                return;
                         }
                     }
-                    //end npcbot
-                    if (!caster || user->GetTypeId() != TYPEID_PLAYER || !user->ToPlayer()->IsInSameRaidWith(caster))
-                        return;
                 }
 
                 user->RemoveAurasByType(SPELL_AURA_MOUNTED);
                 spellId = info->spellcaster.spellId;
-
-                AddUse();
                 break;
             }
         case GAMEOBJECT_TYPE_MEETINGSTONE:                  //23
             {
                 GameObjectTemplate const* info = GetGOInfo();
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
 
                 Player* targetPlayer = ObjectAccessor::FindPlayer(player->GetTarget());
 
-                // accept only use by player from same raid as caster, except caster itself
-                if (!targetPlayer || targetPlayer == player || !targetPlayer->IsInSameRaidWith(player))
+                // accept only use by player from same raid as caster
+                if (!targetPlayer || !targetPlayer->IsInSameRaidWith(player))
                     return;
 
                 //required lvl checks!
@@ -1978,10 +1986,7 @@ void GameObject::Use(Unit* user)
                 if (level < info->meetingstone.minLevel)
                     return;
 
-                if (info->entry == 194097)
-                    spellId = 61994;                            // Ritual of Summoning
-                else
-                    spellId = 59782;                            // Summoning Stone Effect
+                spellId = 23598;                            // Meeting Stone Summon
 
                 break;
             }
@@ -2002,7 +2007,7 @@ void GameObject::Use(Unit* user)
                 }
                 //end npcbot
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -2034,7 +2039,7 @@ void GameObject::Use(Unit* user)
 
         case GAMEOBJECT_TYPE_FISHINGHOLE:                   // 25
             {
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -2078,7 +2083,7 @@ void GameObject::Use(Unit* user)
                 }
                 //end npcbot
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -2136,7 +2141,7 @@ void GameObject::Use(Unit* user)
                 if (!info)
                     return;
 
-                if (user->GetTypeId() != TYPEID_PLAYER)
+                if (!user->IsPlayer())
                     return;
 
                 Player* player = user->ToPlayer();
@@ -2163,7 +2168,7 @@ void GameObject::Use(Unit* user)
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
     if (!spellInfo)
     {
-        if (user->GetTypeId() != TYPEID_PLAYER || !sOutdoorPvPMgr->HandleCustomSpell(user->ToPlayer(), spellId, this))
+        if (!user->IsPlayer() || !sOutdoorPvPMgr->HandleCustomSpell(user->ToPlayer(), spellId, this))
             LOG_ERROR("entities.gameobject", "WORLD: unknown spell id {} at use action for gameobject (Entry: {} GoType: {})", spellId, GetEntry(), GetGoType());
         else
             LOG_DEBUG("outdoorpvp", "WORLD: {} non-dbc spell was handled by OutdoorPvP", spellId);
@@ -2174,7 +2179,10 @@ void GameObject::Use(Unit* user)
         sOutdoorPvPMgr->HandleCustomSpell(player, spellId, this);
 
     if (spellCaster)
-        spellCaster->CastSpell(user, spellInfo, triggered);
+    {
+        if ((spellCaster->CastSpell(user, spellInfo, triggered) == SPELL_CAST_OK) && GetGoType() == GAMEOBJECT_TYPE_SPELLCASTER)
+            AddUse();
+    }
     else
         CastSpell(user, spellId);
 }
@@ -2277,15 +2285,6 @@ bool GameObject::IsInRange(float x, float y, float z, float radius) const
     return dx < (info->maxX * scale) + radius && dx > (info->minX * scale) - radius
            && dy < (info->maxY * scale) + radius && dy > (info->minY * scale) - radius
            && dz < (info->maxZ * scale) + radius && dz > (info->minZ * scale) - radius;
-}
-
-void GameObject::SendMessageToSetInRange(WorldPacket const* data, float dist, bool /*self*/, bool includeMargin, Player const* skipped_rcvr) const
-{
-    dist += GetObjectSize();
-    if (includeMargin)
-        dist += VISIBILITY_COMPENSATION * 2.0f; // pussywizard: to ensure everyone receives all important packets
-    Acore::MessageDistDeliverer notifier(this, data, dist, false, skipped_rcvr);
-    Cell::VisitWorldObjects(this, notifier, dist);
 }
 
 void GameObject::EventInform(uint32 eventId)

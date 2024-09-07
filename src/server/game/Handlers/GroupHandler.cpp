@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Chat.h"
 #include "DatabaseEnv.h"
 #include "Group.h"
 #include "GroupMgr.h"
@@ -115,12 +116,6 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recvData)
     if (invitingPlayer->GetInstanceId() != 0 && invitedPlayer->GetInstanceId() != 0 && invitingPlayer->GetInstanceId() != invitedPlayer->GetInstanceId() && invitingPlayer->GetMapId() == invitedPlayer->GetMapId())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, ERR_TARGET_NOT_IN_INSTANCE_S);
-        return;
-    }
-    // just ignore us
-    if (invitedPlayer->GetInstanceId() != 0 && invitedPlayer->GetDungeonDifficulty() != invitingPlayer->GetDungeonDifficulty())
-    {
-        SendPartyResult(PARTY_OP_INVITE, membername, ERR_IGNORING_YOU_S);
         return;
     }
 
@@ -748,7 +743,7 @@ void WorldSession::HandleRaidReadyCheckOpcode(WorldPacket& recvData)
             // Check if player is in BG
             if (_player->InBattleground())
             {
-                _player->GetSession()->SendNotification(LANG_BG_READY_CHECK_ERROR);
+                ChatHandler(_player->GetSession()).SendNotification(LANG_BG_READY_CHECK_ERROR);
                 return;
             }
         }
@@ -993,7 +988,7 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recvData)
     //end npcbot
 
     Player* player = HashMapHolder<Player>::Find(Guid);
-    if (!player)
+    if (!player || !player->IsInSameRaidWith(_player))
     {
         WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL, 3 + 4 + 2);
         data << uint8(0);                                   // only for SMSG_PARTY_MEMBER_STATS_FULL, probably arena/bg related
@@ -1062,7 +1057,7 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recvData)
     data << uint16(player->GetPositionY());                 // GROUP_UPDATE_FLAG_POSITION
 
     uint64 auraMask = 0;
-    size_t maskPos = data.wpos();
+    std::size_t maskPos = data.wpos();
     data << uint64(auraMask);                               // placeholder
     for (uint8 i = 0; i < MAX_AURAS_GROUP_UPDATE; ++i)
     {
