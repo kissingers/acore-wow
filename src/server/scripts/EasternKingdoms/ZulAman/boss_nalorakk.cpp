@@ -216,7 +216,7 @@ struct boss_nalorakk : public BossAI
                                 me->SetHomePosition(me->GetPosition());
                                 me->SetImmuneToAll(false);
                                 me->SetReactState(REACT_AGGRESSIVE);
-                                me->SetInCombatWithZone();
+                            //  me->SetInCombatWithZone();
                                 _waveList.clear();
                                 _phase = PHASE_START_COMBAT;
                                 _ranIntro = true;
