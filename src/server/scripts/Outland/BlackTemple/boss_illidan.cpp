@@ -316,6 +316,7 @@ struct boss_illidan_stormrage : public BossAI
                 DoStopAttack();
                 me->SetControlled(true, UNIT_STATE_ROOT);
                 me->SetCombatMovement(false);
+                DoResetThreatList();
                 DoCastSelf(SPELL_DEMON_TRANSFORM_1, true);
 
                 me->m_Events.AddEventAtOffset([&] {
@@ -732,9 +733,12 @@ struct npc_akama_illidan : public ScriptedAI
     void Reset() override
     {
         scheduler.CancelAll();
-        me->m_Events.KillAllEvents(true);
+        me->m_Events.KillAllEvents(false);
         me->SetReactState(REACT_AGGRESSIVE);
-        me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+        if (instance->GetBossState(DATA_ILLIDAN_STORMRAGE) == DONE)
+            me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+        else
+            me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
         me->setActive(false);
         summons.DespawnAll();
         DoCastSelf(SPELL_REDUCED_THREAT, true);
@@ -1186,14 +1190,37 @@ struct npc_parasitic_shadowfiend : public ScriptedAI
 {
     npc_parasitic_shadowfiend(Creature* creature) : ScriptedAI(creature) { }
 
+    bool CanAIAttack(Unit const* who) const override
+    {
+        return !who->HasAura(SPELL_PARASITIC_SHADOWFIEND) && !who->HasAura(SPELL_PARASITIC_SHADOWFIEND_TRIGGER);
+    }
+
+    void EnterEvadeMode(EvadeReason /*why*/) override
+    {
+        me->DespawnOrUnsummon();
+    }
+
     void IsSummonedBy(WorldObject* /*summoner*/) override
     {
         // Simulate blizz-like AI delay to avoid extreme overpopulation of adds
         me->SetReactState(REACT_DEFENSIVE);
-        me->m_Events.AddEventAtOffset([&] {
+
+        scheduler.Schedule(2400ms, [this](TaskContext context)
+        {
             me->SetReactState(REACT_AGGRESSIVE);
             me->SetInCombatWithZone();
-        }, 2400ms);
+            context.Repeat();
+        });
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        scheduler.Update(diff);
+
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
     }
 };
 
@@ -1290,18 +1317,38 @@ struct npc_flame_of_azzinoth : public ScriptedAI
     {
         ScheduleTimedEvent(10s, [&] {
             if (Creature* _blade = ObjectAccessor::GetCreature(*me, _bladeGUID))
-                if (Unit* target = _blade->AI()->SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
-                    DoCast(target, SPELL_CHARGE);
+            {
+                Unit* offTank = nullptr;
+
+                if (Creature* secondBlaze = me->FindNearestCreature(NPC_BLAZE, 100.0f, true))
+                    offTank = secondBlaze->GetVictim();
+
+                if (Unit* target = _blade->AI()->SelectTarget(SelectTargetMethod::Random, 0, -40.0f, true))
+                {
+                    if (!offTank || offTank != target)
+                        DoCast(target, SPELL_CHARGE);
+                }
+            }
         }, 5s, 20s);
 
         ScheduleTimedEvent(10s, 20s, [&] {
             DoCastVictim(SPELL_FLAME_BLAST);
 
             me->m_Events.AddEventAtOffset([&] {
-                if (Unit* target = me->GetVictim())
-                    target->CastSpell(target, SPELL_BLAZE, true);
+                if (Unit* victim = me->GetVictim())
+                    victim->CastSpell(victim, SPELL_BLAZE, true);
             }, 1s);
         }, 15s, 20s);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        scheduler.Update(diff);
+
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
     }
 
 private:
@@ -1431,16 +1478,6 @@ class spell_illidan_tear_of_azzinoth_summon_channel_aura : public AuraScript
                 GetTarget()->CastSpell(GetTarget(), SPELL_UNCAGED_WRATH, true);
             }
         }
-
-        // xinef: ugly hax, dunno how it really works on blizz
-        Map::PlayerList const& pl = GetTarget()->GetMap()->GetPlayers();
-        for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
-            if (Player* player = itr->GetSource())
-                if (player->GetPositionX() > 693.4f || player->GetPositionY() < 271.8f || player->GetPositionX() < 658.43f || player->GetPositionY() > 338.68f)
-                {
-                    GetTarget()->CastSpell(player, SPELL_CHARGE, true);
-                    break;
-                }
     }
 
     void Register() override
