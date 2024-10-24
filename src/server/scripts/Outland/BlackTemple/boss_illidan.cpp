@@ -216,6 +216,7 @@ struct boss_illidan_stormrage : public BossAI
         me->SetStandState(UNIT_STAND_STATE_KNEEL);
         me->SetSheath(SHEATH_STATE_UNARMED);
         me->SetControlled(false, UNIT_STATE_ROOT);
+        me->SetCombatMovement(true);
 
         ScheduleHealthCheckEvent(90, [&] {
             // Call for minions
@@ -233,6 +234,7 @@ struct boss_illidan_stormrage : public BossAI
             scheduler.CancelAll();
             if (me->HasAura(SPELL_DEMON_FORM))
                 DoAction(ACTION_ILLIDAN_DEMON_TRANSFORM_BACK);
+            me->m_Events.CancelEventGroup(GROUP_DEMON_FORM);
             DoAction(ACTION_SHADOW_PRISON);
         });
     }
@@ -339,14 +341,13 @@ struct boss_illidan_stormrage : public BossAI
                 DoResetThreatList();
                 DoCastSelf(SPELL_DEMON_TRANSFORM_1, true);
 
-                me->m_Events.AddEventAtOffset([&] {
-                    Talk(SAY_ILLIDAN_MORPH);
-                }, 2630ms);
+                Talk(SAY_ILLIDAN_MORPH, 2630ms);
+
                 me->m_Events.AddEventAtOffset([&] {
                     // me->SetControlled(false, UNIT_STATE_ROOT);
                     me->SetReactState(REACT_AGGRESSIVE);
                     ScheduleAbilities(PHASE_DEMON);
-                }, 12230ms);
+                }, 12230ms, GROUP_DEMON_FORM);
             }
             break;
             case ACTION_ILLIDAN_DEMON_TRANSFORM_BACK:
@@ -557,7 +558,8 @@ struct boss_illidan_stormrage : public BossAI
                 }, 24s);
 
                 ScheduleTimedEvent(60s, [&] {
-                    DoAction(ACTION_ILLIDAN_DEMON_TRANSFORM);
+                    if (!_inCutscene)
+                        DoAction(ACTION_ILLIDAN_DEMON_TRANSFORM);
                 }, 60s);
             }
             break;
@@ -1523,6 +1525,27 @@ class spell_illidan_shadow_prison : public SpellScript
     }
 };
 
+class spell_illidan_shadow_prison_aura : public AuraScript
+{
+    PrepareAuraScript(spell_illidan_shadow_prison_aura);
+
+    void HandleOnEffectApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->ApplySpellImmune(GetId(), IMMUNITY_SCHOOL, aurEff->GetMiscValue(), true);
+    }
+
+    void HandleOnEffectRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->ApplySpellImmune(GetId(), IMMUNITY_SCHOOL, aurEff->GetMiscValue(), false);
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_illidan_shadow_prison_aura::HandleOnEffectApply, EFFECT_1, SPELL_AURA_DAMAGE_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_illidan_shadow_prison_aura::HandleOnEffectRemove, EFFECT_1, SPELL_AURA_DAMAGE_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 class spell_illidan_demon_transform1_aura : public AuraScript
 {
     PrepareAuraScript(spell_illidan_demon_transform1_aura);
@@ -1713,7 +1736,7 @@ void AddSC_boss_illidan()
     RegisterSpellAndAuraScriptPair(spell_illidan_parasitic_shadowfiend_trigger, spell_illidan_parasitic_shadowfiend_trigger_aura);
     RegisterSpellScript(spell_illidan_glaive_throw);
     RegisterSpellScript(spell_illidan_tear_of_azzinoth_summon_channel_aura);
-    RegisterSpellScript(spell_illidan_shadow_prison);
+    RegisterSpellAndAuraScriptPair(spell_illidan_shadow_prison, spell_illidan_shadow_prison_aura);
     RegisterSpellScript(spell_illidan_demon_transform1_aura);
     RegisterSpellScript(spell_illidan_demon_transform2_aura);
     RegisterSpellScript(spell_illidan_flame_burst);
