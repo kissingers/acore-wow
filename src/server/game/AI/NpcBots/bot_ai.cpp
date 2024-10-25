@@ -4,6 +4,7 @@
 #include "BattlegroundWS.h"
 #include "bot_ai.h"
 #include "bot_Events.h"
+#include "bot_InstanceEvents.h"
 #include "bot_GridNotifiers.h"
 #include "botdatamgr.h"
 #include "botlog.h"
@@ -2212,9 +2213,10 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_REGEN_MP_CAST) << ": " << float((_botclass == BOT_CLASS_SPHYNX ? -1.f : 1.f) * me->GetFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER) * sWorld->getRate(RATE_POWER_MANA) * 5.0f);
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_REGEN_MP_NOCAST) << ": " << float((_botclass == BOT_CLASS_SPHYNX ? -1.f : 1.f) * me->GetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER) * sWorld->getRate(RATE_POWER_MANA) * 5.0f);
         }
+        int32 bot_expertise = expertise + me->GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HASTE) << ": " << (haste >= 0 ? "+" : "-") << float(haste) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HIT) << ": +" << float(hit) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(expertise) << " (-" << float(float(expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(bot_expertise) << " (-" << float(float(bot_expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ARMOR_PEN) << ": " << float(me->GetCreatureArmorPenetrationCoef()) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPELL_PEN) << ": " << uint32(spellpen) + uint32(std::abs(me->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_MAGIC)));
 
@@ -3440,7 +3442,8 @@ void bot_ai::SetStats(bool force)
         if (_botclass != BOT_CLASS_SPHYNX)
             me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA));
 
-        me->ResetPlayerDamageReq();
+        if (BotMgr::IsWanderingWorldBot(me))
+            me->ResetPlayerDamageReq();
     }
 
     if (botPet)
@@ -3480,30 +3483,62 @@ void bot_ai::ReceiveEmote(Player* player, uint32 emote)
             break;
         case TEXT_EMOTE_TICKLE:
         {
-            if (master != player)
+            if (master != player && !player->IsGameMaster())
                 break;
+
+            std::ostringstream report;
+            report << "Problems:";
 
             if ((me->HasUnitFlag(UNIT_FLAG_STUNNED) || me->HasUnitState(UNIT_STATE_STUNNED)) &&
                 !me->HasAuraType(SPELL_AURA_MOD_STUN))
             {
+                report << "\n  stunned but no aura";
                 me->ClearUnitState(UNIT_STATE_STUNNED);
                 me->RemoveUnitFlag(UNIT_FLAG_STUNNED);
             }
             if ((me->HasUnitFlag(UNIT_FLAG_CONFUSED) || me->HasUnitState(UNIT_STATE_CONFUSED)) &&
                 !me->HasAuraType(SPELL_AURA_MOD_CONFUSE))
             {
+                report << "\n  confused but no aura";
                 me->ClearUnitState(UNIT_STATE_CONFUSED);
                 me->RemoveUnitFlag(UNIT_FLAG_CONFUSED);
             }
             if ((me->HasUnitFlag(UNIT_FLAG_FLEEING) || me->HasUnitState(UNIT_STATE_FLEEING)) &&
                 !me->HasAuraType(SPELL_AURA_MOD_FEAR))
             {
+                report << "\n  feared but no aura";
                 me->ClearUnitState(UNIT_STATE_FLEEING);
                 me->RemoveUnitFlag(UNIT_FLAG_FLEEING);
             }
-            me->BotStopMovement();
+            if (me->IsInCombat() && !me->GetVictim())
+            {
+                report << "\n  in combat but no target: attackers=" << uint32(me->getAttackers().size());
+                me->CombatStop(true);
+            }
+            if (IsDuringTeleport() && me->IsInWorld() && me->FindMap())
+            {
+                report << "\n  being teleported but in world & in map: home=" << uint32(!!teleHomeEvent) << ", finish=" << uint32(!!teleFinishEvent);
+                AbortTeleport();
+            }
+            if (HasBotCommandState(BOT_COMMAND_ISSUED_ORDER))
+            {
+                report << "\n  pending orders that may have got stuck";
+                CancelAllOrders();
+            }
+            if (HasBotCommandState(BOT_COMMAND_NOGOSSIP))
+            {
+                report << "\n  forgotten NOGOSSIP command state";
+                RemoveBotCommandState(BOT_COMMAND_NOGOSSIP);
+            }
+            if (waitTimer > 10000)
+            {
+                report << "\n  wait timer overflow: " << waitTimer;
+                waitTimer = 0;
+            }
 
+            me->BotStopMovement();
             me->TextEmote(LocalizedNpcText(player, BOT_TEXT_BOT_TICKLED).c_str());
+            ChatHandler(player->GetSession()).SendSysMessage(report.str().c_str());
             break;
         }
         default:
@@ -4041,11 +4076,16 @@ std::tuple<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &re
                 if (icetomb)
                 {
                     bool air_phase = sindragosa && sindragosa->GetReactState() == REACT_PASSIVE;
-                    bool above35 = GetHealthPCT(icetomb) > 35;
-                    if (!air_phase || above35)
-                        return { icetomb, nullptr };
+                    uint8 pct = GetHealthPCT(icetomb);
+                    if (!air_phase || pct > 50)
+                    {
+                        if (air_phase || !IsTank())
+                            return { icetomb, nullptr };
+                    }
                     else if (mytar == icetomb || !master->GetVictim())
                     {
+                        if (IsCasting())
+                            me->InterruptNonMeleeSpells(false);
                         if (botPet && botPet->GetVictim())
                             botPet->AttackStop();
                         return { nullptr, nullptr };
@@ -7090,7 +7130,7 @@ void bot_ai::_OnHealthUpdate() const
         m_totalhp = (m_totalhp * (100 + bonuspct)) / 100;
 
     //m_totalhp = float(uint32(m_totalhp) - (uint32(m_totalhp) % 10));
-    me->SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, float(m_totalhp)); //replaces base hp at max lvl
+    me->SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, float(m_totalhp) * BotMgr::GetBotHPModByLevel(me->GetLevel())); //replaces base hp at max lvl
     me->UpdateMaxHealth(); //will use our values we just set (update base health and buffs)
     //TC_LOG_ERROR("entities.player", "overall hp: %u", me->GetMaxHealth());
     me->SetHealth(fullhp ? me->GetMaxHealth() : uint32(0.5f + float(me->GetMaxHealth()) * pct / 100.f)); //restore pct
@@ -7153,7 +7193,7 @@ void bot_ai::_OnManaUpdate() const
         m_basemana = (m_basemana * (100 + bonuspct)) / 100;
 
     //m_basemana = float(uint32(m_basemana) - (uint32(m_basemana) % 5));
-    me->SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, m_basemana);
+    me->SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, m_basemana * BotMgr::GetBotMPModByLevel(me->GetLevel()));
     me->UpdateMaxPower(POWER_MANA);
     me->SetPower(POWER_MANA, fullmana ? me->GetMaxPower(POWER_MANA) :
         uint32(0.5f + float(me->GetMaxPower(POWER_MANA)) * pct / 100.f)); //restore pct
@@ -7623,6 +7663,7 @@ void bot_ai::ApplyBotDamageMultiplierSpell(int32& damage, SpellNonMeleeDamage& d
 void bot_ai::ApplyBotDamageMultiplierHeal(Unit const* victim, float& heal, SpellInfo const* spellInfo, DamageEffectType damagetype, uint32 stack) const
 {
     //HEALING SPELLS amount bonus
+    heal *= BotMgr::GetBotHealingModByLevel(me->GetLevel());
     ApplyClassDamageMultiplierHeal(victim, heal, spellInfo, damagetype, stack);
     heal = (heal * (BotMgr::IsWanderingWorldBot(me) ? BotMgr::GetBotWandererHealingMod() : BotMgr::GetBotHealingMod()));
 }
@@ -10581,12 +10622,24 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 {
                     std::ostringstream thresholdstr;
                     thresholdstr << LocalizedNpcText(player, BOT_TEXT_HEAL_TARGET_HEALTH_THRESHOLD) << ": " << uint32(GetHealHpPctThreshold()) << "%";
-                    player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GOSSIP_ICON_CHAT, thresholdstr.str(), GOSSIP_SENDER_HEAL_HEALTH_THRESHOLD_SET, GOSSIP_ACTION_INFO_DEF + 3, "", 0, true);
+                    player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GOSSIP_ICON_TALK, thresholdstr.str(), GOSSIP_SENDER_HEAL_HEALTH_THRESHOLD_SET, GOSSIP_ACTION_INFO_DEF + 3, "", 0, true);
                 }
             }
 
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_BACK), 1, GOSSIP_ACTION_INFO_DEF + 4);
             break;
+        }
+        case GOSSIP_SENDER_HEAL_HEALTH_THRESHOLD_PROPAGATE:
+        {
+            uint8 threshold = GetHealHpPctThreshold();
+            BotMap const* bmap = player->GetBotMgr()->GetBotMap(); // player === master
+            for (BotMap::const_iterator citr = bmap->begin(); citr != bmap->end(); ++citr)
+            {
+                if (citr->second && citr->second != me && citr->second->GetBotAI() && citr->second->GetBotAI()->HasRole(BOT_ROLE_HEAL))
+                    citr->second->GetBotAI()->SetHealHpPctThreshold(threshold);
+            }
+
+            return OnGossipSelect(player, creature, GOSSIP_SENDER_ENGAGE_BEHAVIOR, action);
         }
         case GOSSIP_SENDER_PRIORITY_TARGET_SET_TANK:
         case GOSSIP_SENDER_PRIORITY_TARGET_SET_DPS:
@@ -11083,13 +11136,16 @@ bool bot_ai::OnGossipSelectCode(Player* player, Creature* creature/* == me*/, ui
         }
         case GOSSIP_SENDER_HEAL_HEALTH_THRESHOLD_SET:
         {
+            subMenu = true;
+
             char* dist = strtok((char*)code, "");
             float threshold = std::min<float>(std::max<float>(atof(dist), 0.f), 99.f);
 
             SetHealHpPctThreshold(uint8(threshold));
 
-            player->PlayerTalkClass->SendCloseGossip();
-            return OnGossipSelect(player, creature, GOSSIP_SENDER_ENGAGE_BEHAVIOR, action);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_SET_FOR_ALL_EVERYONE), GOSSIP_SENDER_HEAL_HEALTH_THRESHOLD_PROPAGATE, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_BACK), GOSSIP_SENDER_ENGAGE_BEHAVIOR, GOSSIP_ACTION_INFO_DEF + 2);
+            break;
         }
         default:
             break;
@@ -15920,7 +15976,7 @@ void bot_ai::DamageDealt(Unit* victim, uint32& damage, DamageEffectType /*damage
 
             //controlled case is handled in Unit::DealDamage
             if (IAmFree())
-                cre->LowerPlayerDamageReq(std::min<uint32>(cre->GetHealth(), damage) / (IsWanderer() ? 4 : 2));
+                cre->LowerPlayerDamageReq(std::min<uint32>(cre->GetHealth(), damage) / (BotMgr::IsWanderingWorldBot(me) ? 4 : 2));
         }
     }
 
@@ -20221,6 +20277,52 @@ bool bot_ai::IsFlagCarrier(Unit const* unit, BattlegroundTypeId bgTypeId)
     }
 
     return false;
+}
+
+//DEDICATED EVENTS
+//INSTANCES
+bool FrozenThronePlatformDestructionEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+{
+    std::vector<Creature*> bots_to_push;
+    bots_to_push.reserve(MAXGROUPSIZE * 5);
+    Map::PlayerList const& players = GetScript()->instance->GetPlayers();
+    for (Map::PlayerList::const_iterator it = players.begin(); it != players.end(); ++it)
+    {
+        if (Player const* player = it->GetSource())
+        {
+            if (player->HaveBot())
+            {
+                for (BotMap::value_type const& bpair : *player->GetBotMgr()->GetBotMap())
+                {
+                    Creature* bot = bpair.second;
+                    if (bot && bot->IsAlive() && bot->IsInMap(player) && bot->CanFreeMove())
+                    {
+                        float dist = bot->GetExactDist2d(_platform_pos);
+                        if (dist > 46 && dist < 100 && bot->GetPositionZ() > _platform_pos.GetPositionZ() + 3.0f && bot->GetPositionZ() < _platform_pos.GetPositionZ() + 20.0f)
+                            bots_to_push.push_back(bot);
+                    }
+                }
+            }
+        }
+    }
+
+    if (!bots_to_push.empty())
+    {
+        float knock_src_dist = 10.0f;
+        float speed_xy = 35.0f;
+        float speed_z = 12.0f;
+
+        for (Creature* bot : bots_to_push)
+        {
+            float knockback_angle = Position::NormalizeOrientation(bot->GetAbsoluteAngle(_platform_pos) + float(M_PI));
+            float knockback_x = bot->GetPositionX() + knock_src_dist * std::cos(knockback_angle);
+            float knockback_y = bot->GetPositionY() + knock_src_dist * std::sin(knockback_angle);
+            bot->GetMotionMaster()->MoveKnockbackFrom(knockback_x, knockback_y, speed_xy, speed_z);
+            bot->m_Events.AddEventAtOffset([=]() { bot->CastSpell(bot, 6869, true); }, 1600ms); // Fall Down
+        }
+    }
+
+    return true;
 }
 
 #ifdef _MSC_VER
