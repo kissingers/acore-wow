@@ -476,6 +476,7 @@ public:
                 {
                     timer = 0;
                     me->CastSpell(me, SPELL_SUMMON_BLAZING_DEAD, true);
+                    me->DespawnOrUnsummon(100000);    //106秒后毒气对应npc消失
                 }
             }
         }
