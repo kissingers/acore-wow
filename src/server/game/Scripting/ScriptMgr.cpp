@@ -24,6 +24,10 @@
 #include "SpellMgr.h"
 #include "UnitAI.h"
 
+//npcbot
+#include "botmgr.h"
+//end npcbot
+
 namespace
 {
     template<typename T>
@@ -69,6 +73,10 @@ void ScriptMgr::Initialize()
     LOG_INFO("server.loading", " ");
 
     AddSC_SmartScripts();
+
+    //npcbot: load bot scripts here
+    AddNpcBotScripts();
+    //end npcbot
 
     // LFGScripts
     lfg::AddSC_LFGScripts();
