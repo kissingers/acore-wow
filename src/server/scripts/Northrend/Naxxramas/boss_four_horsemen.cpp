@@ -23,6 +23,34 @@
 #include "SpellScriptLoader.h"
 #include "naxxramas.h"
 
+enum Spells
+{
+    SPELL_BERSERK                       = 26662,
+    // Marks
+    SPELL_MARK_OF_KORTHAZZ              = 28832,
+    SPELL_MARK_OF_BLAUMEUX              = 28833,
+    SPELL_MARK_OF_RIVENDARE             = 28834,
+    SPELL_MARK_OF_ZELIEK                = 28835,
+    SPELL_MARK_DAMAGE                   = 28836,
+    // Korth'azz
+    SPELL_KORTHAZZ_METEOR_10            = 28884,
+    SPELL_KORTHAZZ_METEOR_25            = 57467,
+    // Blaumeux
+    SPELL_BLAUMEUX_SHADOW_BOLT_10       = 57374,
+    SPELL_BLAUMEUX_SHADOW_BOLT_25       = 57464,
+    SPELL_BLAUMEUX_VOID_ZONE_10         = 28863,
+    SPELL_BLAUMEUX_VOID_ZONE_25         = 57463,
+    SPELL_BLAUMEUX_UNYIELDING_PAIN      = 57381,
+    // Zeliek
+    SPELL_ZELIEK_HOLY_WRATH_10          = 28883,
+    SPELL_ZELIEK_HOLY_WRATH_25          = 57466,
+    SPELL_ZELIEK_HOLY_BOLT_10           = 57376,
+    SPELL_ZELIEK_HOLY_BOLT_25           = 57465,
+    SPELL_ZELIEK_CONDEMNATION           = 57377,
+    // Rivendare
+    SPELL_RIVENDARE_UNHOLY_SHADOW_10    = 28882,
+    SPELL_RIVENDARE_UNHOLY_SHADOW_25    = 57369
+};
 
 enum Events
 {
@@ -291,7 +319,7 @@ public:
 
             if (me->GetEntry() == NPC_LADY_BLAUMEUX || me->GetEntry() == NPC_SIR_ZELIEK)
             {
-                if (Unit* pTarget = me->SelectNearestTarget(300.0f))
+                if (Unit* pTarget = me->SelectNearestPlayer(300.0f))
                 {
                     if (pTarget && me->IsValidAttackTarget(pTarget))
                     {
