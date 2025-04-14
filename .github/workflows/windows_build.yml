@@ -1,13 +1,10 @@
 name: windows-build
 on:
   push:
-    branches:
-      - 'npcbots_3.3.5'
-      - 'CI'
+    branches: [ "npcplusplay" ]
+
   pull_request:
-    types:
-      - labeled
-      - synchronize
+    branches: [ "npcplusplay" ]
 
 concurrency:
   group: ${{ github.head_ref }} || concat(${{ github.ref }}, ${{ github.workflow }})
@@ -23,7 +20,8 @@ jobs:
     name: ${{ matrix.os }}
     env:
       BOOST_ROOT: C:\local\boost_1_82_0
-    if: github.repository == 'trickerer/AzerothCore-wotlk-with-NPCBots' && !github.event.pull_request.draft
+
+    if: github.repository == 'kissingers/acore-wow' && !github.event.pull_request.draft
     steps:
       - uses: actions/checkout@v4
       - name: ccache
