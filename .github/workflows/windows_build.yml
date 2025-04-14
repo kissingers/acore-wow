@@ -1,9 +1,10 @@
 name: windows-build
 on:
   push:
-    branches: [ "Playerbot" ]
+    branches: [ "npcplusplay" ]
+
   pull_request:
-    branches: [ "Playerbot" ]
+    branches: [ "npcplusplay" ]
 
 concurrency:
   group: ${{ github.head_ref }} || concat(${{ github.ref }}, ${{ github.workflow }})
@@ -19,6 +20,8 @@ jobs:
     name: ${{ matrix.os }}
     env:
       BOOST_ROOT: C:\local\boost_1_82_0
+
+    if: github.repository == 'kissingers/acore-wow' && !github.event.pull_request.draft
     steps:
       - uses: actions/checkout@v4
       - name: ccache

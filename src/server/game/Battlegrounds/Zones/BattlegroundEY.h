@@ -382,7 +382,10 @@ struct CaptureEYPointInfo
         _playersCount[TEAM_ALLIANCE] = 0;
         _playersCount[TEAM_HORDE] = 0;
     }
-
+    
+    //npcbot
+    Creature* bot = nullptr;
+    //end npcbot
     Player* player = nullptr;
     TeamId _ownerTeamId;
     int8 _barStatus;
@@ -424,6 +427,24 @@ public:
     void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
     void SetDroppedFlagGUID(ObjectGuid guid, TeamId /*teamId*/ = TEAM_NEUTRAL) override  { _droppedFlagGUID = guid; }
     ObjectGuid GetDroppedFlagGUID() const { return _droppedFlagGUID; }
+
+    //npcbot
+    void AddBot(Creature* bot) override;
+    GraveyardStruct const* GetClosestGraveyardForBot(Creature* bot) const override;
+    void RemoveBot(ObjectGuid guid) override;
+    bool UpdateBotScore(Creature const* bot, uint32 type, uint32 value) override;
+    void HandleBotKillPlayer(Creature* killer, Player* victim) override;
+    void HandleBotKillBot(Creature* killer, Creature* victim) override;
+    void HandlePlayerKillBot(Creature* victim, Player* killer) override;
+    void EventBotDroppedFlag(Creature* bot) override;
+    void EventBotClickedOnFlag(Creature* bot, GameObject* target_obj) override;
+    void HandleBotAreaTrigger(Creature* bot, uint32 trigger) override;
+    void EventBotCapturedFlag(Creature* bot, uint32 bgObjectType);
+    void EventBotTeamCapturedPoint(Creature const* bot, TeamId teamId, uint32 point);
+    void EventBotTeamLostPoint(Creature const* bot, uint32 point);
+    int8 GetPlayersCountNearPoint(uint8 point, TeamId teamId) const { return _capturePointInfo[point]._playersCount[teamId]; }
+    TeamId GetPointOwner(uint8 point) const { return _capturePointInfo[point]._ownerTeamId; }
+    //end npcbot
 
     /* Battleground Events */
     void EventPlayerClickedOnFlag(Player* player, GameObject* gameObject) override;
