@@ -1916,7 +1916,6 @@ public:
     void EventBotDefendsPoint(Creature* bot, uint32 object);
     BG_AV_NodeInfo const (&GetNodes() const)[BG_AV_NODES_MAX] { return m_Nodes; }
     uint32 GetObjectThroughNodeForBot(BG_AV_Nodes node, bool log = false) { return GetObjectThroughNode(node, log); }
-    TeamId GetMineOwner(uint8 mine_idx) const { return m_Mine_Owner[mine_idx]; }
     //end npcbot
 
     /* achievement req. */
@@ -1924,6 +1923,10 @@ public:
     bool IsAllTowersControlledAndCaptainAlive(TeamId teamId) const;
 
     TeamId GetPrematureWinner() override;
+
+    [[nodiscard]] BG_AV_NodeInfo const& GetAVNodeInfo(uint32 node) const { return m_Nodes[node]; }
+    [[nodiscard]] bool IsCaptainAlive(uint8 index) const { return m_CaptainAlive[index]; }
+    [[nodiscard]] TeamId GetMineOwner(uint8 index) const { return m_Mine_Owner[index]; }
 
 private:
     void PostUpdateImpl(uint32 diff) override;
