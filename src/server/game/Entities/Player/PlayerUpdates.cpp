@@ -185,8 +185,8 @@ void Player::Update(uint32 p_time)
                         m_swingErrorMsg = 1;
                     }
                 }
-                // 120 degrees of radiant range
-                else if (!HasInArc(2 * M_PI / 3, victim))
+                // 120 degrees of radiant range, if player is not in boundary radius
+                else if (!IsWithinBoundaryRadius(victim) && !HasInArc(2 * float(M_PI) / 3, victim))
                 {
                     setAttackTimer(BASE_ATTACK, 100);
                     if (m_swingErrorMsg != 2) // send single time (client auto repeat)
@@ -215,8 +215,8 @@ void Player::Update(uint32 p_time)
             {
                 if (!IsWithinMeleeRange(victim))
                     setAttackTimer(OFF_ATTACK, 100);
-                else if (!HasInArc(2 * M_PI / 3, victim))
-                    setAttackTimer(OFF_ATTACK, 100);
+                else if (!IsWithinBoundaryRadius(victim) && !HasInArc(2 * float(M_PI) / 3, victim))
+                    setAttackTimer(BASE_ATTACK, 100);
                 else
                 {
                     // prevent base and off attack in same time, delay attack at
@@ -1257,17 +1257,20 @@ void Player::UpdateArea(uint32 newArea)
         RemoveRestFlag(REST_FLAG_IN_FACTION_AREA);
 }
 
-void Player::UpdateZone(uint32 newZone, uint32 newArea)
+void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
 {
     if (!newZone)
         return;
 
-    if (m_zoneUpdateId != newZone)
+    if (m_zoneUpdateId != newZone || force)
     {
         sOutdoorPvPMgr->HandlePlayerLeaveZone(this, m_zoneUpdateId);
         sOutdoorPvPMgr->HandlePlayerEnterZone(this, newZone);
-        sWorldState->HandlePlayerLeaveZone(this, static_cast<WorldStateZoneId>(m_zoneUpdateId));
-        sWorldState->HandlePlayerEnterZone(this, static_cast<WorldStateZoneId>(newZone));
+        sWorldState->HandlePlayerLeaveZone(this, static_cast<AreaTableIDs>(m_zoneUpdateId));
+        sWorldState->HandlePlayerEnterZone(this, static_cast<AreaTableIDs>(newZone));
+    }
+    if (m_zoneUpdateId != newZone)
+    {
         sBattlefieldMgr->HandlePlayerLeaveZone(this, m_zoneUpdateId);
         sBattlefieldMgr->HandlePlayerEnterZone(this, newZone);
         SendInitWorldStates(newZone,
@@ -1693,6 +1696,8 @@ template <class T>
 void Player::UpdateVisibilityOf(T* target, UpdateData& data,
                                 std::vector<Unit*>& visibleNow)
 {
+    GetMap()->AddObjectToPendingUpdateList(target);
+
     if (HaveAtClient(target))
     {
         if (!CanSeeOrDetect(target, false, true))

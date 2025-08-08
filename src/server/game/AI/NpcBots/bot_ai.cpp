@@ -159,7 +159,7 @@ static void ApplyBotPercentModFloatVar(float &var, float val, bool apply)
 static uint16 __rand; //calculated for each bot separately once every updateAI tick
 
 bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
-    _botData(const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(creature->GetEntry()))),
+    _botData(const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(creature->GetEntry() == BOT_ENTRY_MIRROR_IMAGE_BM ? creature->ToTempSummon()->GetSummonerGUID().GetEntry() : creature->GetEntry()))),
     _botExtras(const_cast<NpcBotExtras*>(BotDataMgr::SelectNpcBotExtras(creature->GetEntry())))
 {
     //moved
@@ -310,7 +310,8 @@ bot_ai::~bot_ai()
 
     delete _classinfo;
 
-    BotDataMgr::UnregisterBot(me);
+    if (!IsTempBot())
+        BotDataMgr::UnregisterBot(me);
 }
 
 uint16 bot_ai::Rand() const
@@ -19622,7 +19623,7 @@ WanderNode const* bot_ai::GetNextBGTravelNode() const
                         else if (c.OwnerId == myTeamId)
                             assaulted_nodes.emplace(uint8(counter), &c);
                     }
-                    else if (c.State == BG_AV_States::POINT_NEUTRAL || (c.State == BG_AV_States::POINT_CONTROLED && c.OwnerId != myTeamId))
+                    else if (c.State == BG_AV_States::POINT_NEUTRAL || (c.State == BG_AV_States::POINT_CONTROLLED && c.OwnerId != myTeamId))
                         assaultable_nodes.emplace(uint8(counter), &c);
                     else if (counter == (teamId == TEAM_ALLIANCE ? BG_AV_NODES_FROSTWOLF_HUT : BG_AV_NODES_FIRSTAID_STATION))
                         assaultable_nodes.emplace(uint8(counter), &c);
@@ -21131,7 +21132,7 @@ bool bot_ai::IsInContactWithWater() const
 
 bool bot_ai::IsTempBot() const
 {
-    return me->GetEntry() == BOT_ENTRY_MIRROR_IMAGE_BM;
+    return me->GetOriginalEntry() == BOT_ENTRY_MIRROR_IMAGE_BM;
 }
 
 uint32 bot_ai::GetLostHP(Unit const* unit)
