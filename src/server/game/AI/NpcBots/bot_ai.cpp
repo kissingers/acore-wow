@@ -6541,7 +6541,7 @@ WorldObject* bot_ai::GetNearbyRezTarget(float dist) const
 
     NearbyRezTargetCheck check(me, dist, this);
     Bcore::WorldObjectListSearcher <NearbyRezTargetCheck> searcher(me, list, check);
-    Cell::VisitWorldObjects(me, searcher, dist);
+    Cell::VisitObjects(me, searcher, dist);
 
     if (list.empty())
         return nullptr;
@@ -18006,7 +18006,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                 std::list<Player*> plist;
                 Bcore::AllWorldObjectsInExactRange pcheck(me, 15.0f, false);
                 Bcore::PlayerListSearcher<decltype(pcheck)> searcher(me, plist, pcheck);
-                Cell::VisitWorldObjects(me, searcher, 20.f);
+                Cell::VisitObjects(me, searcher, 20.f);
                 _canAppearInWorld = std::any_of(plist.cbegin(), plist.cend(), [](Player const* pl) { return pl->GetSession()->GetSecurity() > SEC_PLAYER; });
                 if (!CanAppearInWorld() && !IsDuringTeleport())
                     BotMgr::TeleportBot(me, mymap, me, true);
@@ -21586,13 +21586,13 @@ void bot_ai::SetContestedPvP()
     {
         me->AddUnitState(UNIT_STATE_ATTACK_PLAYER);
         Bcore::AIRelocationNotifier notifier(*me);
-        Cell::VisitWorldObjects(me, notifier, me->GetVisibilityRange());
+        Cell::VisitObjects(me, notifier, me->GetVisibilityRange());
     }
     if (botPet && !botPet->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
     {
         botPet->AddUnitState(UNIT_STATE_ATTACK_PLAYER);
         Bcore::AIRelocationNotifier notifier(*botPet);
-        Cell::VisitWorldObjects(me, notifier, me->GetVisibilityRange());
+        Cell::VisitObjects(me, notifier, me->GetVisibilityRange());
     }
 }
 void bot_ai::ResetContestedPvP()
