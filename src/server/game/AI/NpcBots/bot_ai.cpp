@@ -20854,7 +20854,7 @@ Unit* bot_ai::SpawnVehicle(uint32 creEntry, uint32 vehEntry)
     {
         o = master->GetOrientation();
         me->GetClosePoint(x, y, z, me->GetCombatReach());
-        vc = new TempSummon(nullptr, me->GetGUID(), false);
+        vc = new TempSummon(nullptr, me->GetGUID());
         ASSERT(vc->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, master->GetPhaseMask(), creEntry, vehEntry, x,y,z,o));
         vc->ClearZoneScript();
         vc->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
@@ -20873,7 +20873,7 @@ Unit* bot_ai::SpawnVehicle(uint32 creEntry, uint32 vehEntry)
         z = me->GetTransOffsetZ();
         Position vehpos(x, y, z, o);
         me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
-        vc = new TempSummon(nullptr, me->GetGUID(), false);
+        vc = new TempSummon(nullptr, me->GetGUID());
         ASSERT(vc->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, master->GetPhaseMask(), creEntry, vehEntry, x,y,z,o));
         vc->ClearZoneScript();
 
