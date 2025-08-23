@@ -24,7 +24,7 @@
 #include "SpellMgr.h"
 #include "TotemPackets.h"
 
- //npcbot
+//npcbot
 #include "botmgr.h"
 #include "ObjectAccessor.h"
 //end npcbot

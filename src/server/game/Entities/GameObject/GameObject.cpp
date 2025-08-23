@@ -38,7 +38,7 @@
 #include <G3D/CoordinateFrame.h>
 #include <G3D/Quat.h>
 
- //npcbot
+//npcbot
 #include "botmgr.h"
 //end npcbot
 
