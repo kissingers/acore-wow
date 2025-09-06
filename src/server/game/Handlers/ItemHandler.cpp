@@ -31,7 +31,7 @@
 
 #include "ItemPackets.h"
 
- // npcbot
+// npcbot
 #include "botmgr.h"
 //end npcbot
 
