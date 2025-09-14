@@ -64,6 +64,103 @@ void VisibleNotifier::SendToSelf()
         WorldObject* obj = itr->second;
         if (!i_player.IsWorldObjectOutOfSightRange(obj)
             || i_player.CanSeeOrDetect(obj, false, true))
+
+            //npcbot:
+            if (obj->IsNPCBotOrPet() && i_player.GetDistance2d(obj) < i_player.GetVisibilityRange() && i_player.CanSeeOrDetect(obj, false, true))
+                continue;
+            //end npcbot
+            if (obj->IsNPCBotOrPet() && i_player.GetDistance2d(obj) < i_player.GetVisibilityRange() && i_player.CanSeeOrDetect(obj, false, true))
+                continue;
+            //end npcbot
+        }
+
+        // pussywizard: static transports are removed only in RemovePlayerFromMap and here if can no longer detect (eg. phase changed)
+        if (itr->first.IsTransport())
+        {
+            if (GameObject* staticTrans = obj->ToGameObject())
+            {
+                if (i_player.CanSeeOrDetect(staticTrans, false, true))
+                {
+                    ++itr;
+                    continue;
+                }
+            }
+        }
+
+        if (i_player.m_seer->IsWithinDist(obj, i_player.GetSightRange(obj), true))
+=========
+        if (!i_player.IsWorldObjectOutOfSightRange(obj)
+            || i_player.CanSeeOrDetect(obj, false, true))
+>>>>>>>>> Temporary merge branch 2
+            if (obj->IsNPCBotOrPet() && i_player.GetDistance2d(obj) < i_player.GetVisibilityRange() && i_player.CanSeeOrDetect(obj, false, true))
+                continue;
+            //end npcbot
+        }
+
+        // pussywizard: static transports are removed only in RemovePlayerFromMap and here if can no longer detect (eg. phase changed)
+        if (itr->first.IsTransport())
+        {
+            if (GameObject* staticTrans = obj->ToGameObject())
+            {
+                if (i_player.CanSeeOrDetect(staticTrans, false, true))
+                {
+                    ++itr;
+                    continue;
+                }
+            }
+        }
+
+        if (i_player.m_seer->IsWithinDist(obj, i_player.GetSightRange(obj), true))
+=========
+        if (!i_player.IsWorldObjectOutOfSightRange(obj)
+            || i_player.CanSeeOrDetect(obj, false, true))
+>>>>>>>>> Temporary merge branch 2
+            if (obj->IsNPCBotOrPet() && i_player.GetDistance2d(obj) < i_player.GetVisibilityRange() && i_player.CanSeeOrDetect(obj, false, true))
+                continue;
+            //end npcbot
+        }
+
+        // pussywizard: static transports are removed only in RemovePlayerFromMap and here if can no longer detect (eg. phase changed)
+        if (itr->first.IsTransport())
+        {
+            if (GameObject* staticTrans = obj->ToGameObject())
+            {
+                if (i_player.CanSeeOrDetect(staticTrans, false, true))
+                {
+                    ++itr;
+                    continue;
+                }
+            }
+        }
+
+        if (i_player.m_seer->IsWithinDist(obj, i_player.GetSightRange(obj), true))
+=========
+        if (!i_player.IsWorldObjectOutOfSightRange(obj)
+            || i_player.CanSeeOrDetect(obj, false, true))
+>>>>>>>>> Temporary merge branch 2
+            if (obj->IsNPCBotOrPet() && i_player.GetDistance2d(obj) < i_player.GetVisibilityRange() && i_player.CanSeeOrDetect(obj, false, true))
+                continue;
+            //end npcbot
+        }
+
+        // pussywizard: static transports are removed only in RemovePlayerFromMap and here if can no longer detect (eg. phase changed)
+        if (itr->first.IsTransport())
+        {
+            if (GameObject* staticTrans = obj->ToGameObject())
+            {
+                if (i_player.CanSeeOrDetect(staticTrans, false, true))
+                {
+                    ++itr;
+                    continue;
+                }
+            }
+        }
+
+        if (i_player.m_seer->IsWithinDist(obj, i_player.GetSightRange(obj), true))
+=========
+        if (!i_player.IsWorldObjectOutOfSightRange(obj)
+            || i_player.CanSeeOrDetect(obj, false, true))
+>>>>>>>>> Temporary merge branch 2
         {
             ++itr;
             continue;
