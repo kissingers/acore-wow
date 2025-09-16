@@ -24,7 +24,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 
- //npcbot
+//npcbot
 #include "botmgr.h"
 #include "bpet_ai.h"
 //end npcbot
