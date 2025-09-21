@@ -92,7 +92,7 @@ void WorldSession::HandleBattlemasterJoinOpcode(WorldPacket& recvData)
     // entry not found
     if (!sBattlemasterListStore.LookupEntry(bgTypeId_))
     {
-        LOG_ERROR("network", "Battleground: invalid bgtype ({}) received. possible cheater? player {}", bgTypeId_, _player->GetGUID().ToString());
+        LOG_DEBUG("network", "Battleground: invalid bgtype ({}) received. possible cheater? player {}", bgTypeId_, _player->GetGUID().ToString());
         return;
     }
 
