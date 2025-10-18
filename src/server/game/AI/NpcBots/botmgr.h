@@ -109,8 +109,12 @@ class AC_GAME_API BotMgr
         using delayed_teleport_mutex_type = std::mutex;
         using delayed_teleport_lock_type = std::unique_lock<delayed_teleport_mutex_type>;
 
-        BotMgr(Player* const master);
+        explicit BotMgr(Player* const master);
         ~BotMgr();
+        BotMgr(BotMgr const&) = delete;
+        BotMgr(BotMgr&&) = delete;
+        BotMgr& operator=(BotMgr const&) = delete;
+        BotMgr& operator=(BotMgr&&) = delete;
 
         Player* GetOwner() const { return _owner; }
 
@@ -371,7 +375,6 @@ class AC_GAME_API BotMgr
 
         Player* const _owner;
         BotMap _bots;
-        std::list<ObjectGuid> _removeList;
         std::list<std::pair<ObjectGuid, BotRemoveType>> _delayedRemoveList;
         DPSTracker* const _dpstracker;
         NpcBotMgrData* _data;
