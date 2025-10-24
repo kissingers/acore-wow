@@ -3568,8 +3568,10 @@ void Creature::UpdateMovementFlags()
     {
         if (m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY))
             SetCanFly(false);
+
         if (IsLevitating())
             SetDisableGravity(false);
+
         if (IsAlive() && (GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || HasHoverAura()) && !IsHovering())
             SetHover(true);
     }
