@@ -1839,14 +1839,14 @@ void GameObject::Use(Unit* user)
                     if (info->summoningRitual.animSpell)
                     {
                         user->CastSpell(user, info->summoningRitual.animSpell, true);
-                        triggered = true;
+                        triggeredFlags |= TRIGGERED_IGNORE_GCD;
                     }
 
                     spellId = info->summoningRitual.spellId;
                     if (spellId == 62330)
                     {
                         spellId = 61993;
-                        triggered = true;
+                        triggeredFlags |= TRIGGERED_IGNORE_GCD;
                     }
                     if (!info->summoningRitual.ritualPersistent)
                         SetLootState(GO_JUST_DEACTIVATED);
