@@ -2922,7 +2922,7 @@ public:
             return false;
         };
 
-        static auto return_success = [&](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
+        static auto return_success = [=](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
             if (name_or_count.holds_alternative<uint32>())
                 chandler->PSendSysMessage("Marked send point {} for {} bot(s)", *point_id, name_or_count.get<uint32>());
             else
@@ -2983,7 +2983,7 @@ public:
             return false;
         };
 
-        static auto return_success = [&](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
+        static auto return_success = [=](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
             if (name_or_count.holds_alternative<uint32>())
                 chandler->PSendSysMessage("Moving {} bot(s) to point {}...", name_or_count.get<uint32>(), *point_id);
             else
@@ -3962,7 +3962,7 @@ public:
 
     static bool HandleNpcBotSpawnedCommandImpl(ChatHandler* handler, Optional<std::string> area_str, Optional<std::string> class_str, Optional<uint32> level_min, Optional<uint32> level_max, bool is_free)
     {
-        std::unique_lock<std::shared_mutex> lock(*BotDataMgr::GetLock());
+        std::shared_lock<std::shared_mutex> lock(*BotDataMgr::GetLock());
         NpcBotRegistry const& all_bots = BotDataMgr::GetExistingNPCBots();
         std::vector<NpcBotRegistry::value_type> found_bots;
         found_bots.reserve(all_bots.size());
@@ -4058,7 +4058,7 @@ public:
             if ((1 << bclass) & ALL_BOT_CLASSES_MASK)
                 GetBotClassNameAndColor(bclass, dummy, bot_class_names[bclass]);
 
-        std::unique_lock<std::shared_mutex> lock(*BotDataMgr::GetLock());
+        std::shared_lock<std::shared_mutex> lock(*BotDataMgr::GetLock());
         NpcBotRegistry const& all_bots = BotDataMgr::GetExistingNPCBots();
         std::vector<NpcBotRegistry::value_type> found_bots;
         found_bots.reserve(all_bots.size());
@@ -4793,25 +4793,34 @@ public:
 
     static bool HandleNpcBotCommandReBindCommand(ChatHandler* handler, Optional<std::vector<std::string>> names)
     {
-        static auto return_syntax = [](ChatHandler* chandler) -> bool {
-            chandler->SendSysMessage(".npcbot command rebind [#names...]");
-            chandler->SendSysMessage("Re-binds selected/named unbound npcbot");
-            chandler->SetSentErrorMessage(true);
+        auto return_syntax = [=] {
+            handler->SendSysMessage(".npcbot command rebind [#names...]");
+            handler->SendSysMessage("Re-binds selected/named unbound npcbot");
+            handler->SetSentErrorMessage(true);
             return false;
         };
 
-        static auto return_success = [](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
+        auto return_success = [=](Variant<std::string_view, uint32> name_or_count) {
             if (name_or_count.holds_alternative<uint32>())
-                chandler->PSendSysMessage("Successfully re-bound {} bot(s)", name_or_count.get<uint32>());
+                handler->PSendSysMessage("Successfully re-bound {} bot(s)", name_or_count.get<uint32>());
             else
-                chandler->PSendSysMessage("Successfully re-bound {}", name_or_count.get<std::string>());
+                handler->PSendSysMessage("Successfully re-bound {}", name_or_count.get<std::string_view>());
             return true;
+        };
+
+        auto return_fail = [=](BotAddResult result, Variant<std::string_view, uint32> name_or_count) {
+            if (name_or_count.holds_alternative<uint32>())
+                handler->PSendSysMessage("Unable to re-bind any of {} bots!", name_or_count.get<uint32>());
+            else
+                handler->PSendSysMessage("Failed to re-bind {}, result was {}!", name_or_count.get<std::string_view>(), uint32(result));
+            handler->SetSentErrorMessage(true);
+            return false;
         };
 
         Player const* owner = handler->GetSession()->GetPlayer();
 
         if (!owner->HaveBot() && BotDataMgr::GetOwnedBotsCount(owner->GetGUID()) == 0)
-            return return_syntax(handler);
+            return return_syntax();
 
         BotMgr* mgr = owner->GetBotMgr();
 
@@ -4821,15 +4830,12 @@ public:
             if (bot && bot->IsNPCBot() && !bot->IsTempBot() && !mgr->GetBot(bot->GetGUID()) && bot->GetBotAI()->HasBotCommandState(BOT_COMMAND_UNBIND) &&
                 BotDataMgr::SelectNpcBotData(bot->GetEntry())->owner == owner->GetGUID().GetCounter())
             {
-                if (mgr->RebindBot(const_cast<Creature*>(bot)) != BOT_ADD_SUCCESS)
-                {
-                    handler->PSendSysMessage("Failed to re-bind {} for some reason!", bot->GetName());
-                    handler->SetSentErrorMessage(true);
-                    return false;
-                }
-                return return_success(handler, { bot->GetName() });
+                if (BotAddResult res = mgr->RebindBot(const_cast<Creature*>(bot)); res != BOT_ADD_SUCCESS)
+                    return return_fail(res, { bot->GetName() });
+
+                return return_success({ bot->GetName() });
             }
-            return return_syntax(handler);
+            return return_syntax();
         }
 
         uint32 count = 0;
@@ -4848,10 +4854,9 @@ public:
             if (bot && bot->IsNPCBot() && !bot->IsTempBot() && !mgr->GetBot(bot->GetGUID()) && bot->GetBotAI()->HasBotCommandState(BOT_COMMAND_UNBIND) &&
                 BotDataMgr::SelectNpcBotData(bot->GetEntry())->owner == owner->GetGUID().GetCounter())
             {
-                if (mgr->RebindBot(const_cast<Creature*>(bot)) != BOT_ADD_SUCCESS)
+                if (BotAddResult res = mgr->RebindBot(const_cast<Creature*>(bot)); res != BOT_ADD_SUCCESS)
                 {
-                    handler->PSendSysMessage("Failed to re-bind {} for some reason!", name);
-                    handler->SetSentErrorMessage(true);
+                    return_fail(res, { name });
                     continue;
                 }
                 ++count;
@@ -4859,13 +4864,9 @@ public:
         }
 
         if (count == 0)
-        {
-            handler->PSendSysMessage("Unable to re-bind any of {} bots!", uint32(names->size()));
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
+            return return_fail({}, { uint32(names->size()) });
 
-        return return_success(handler, { count });
+        return return_success({ count });
     }
 
     static bool HandleNpcBotCommandUnBindCommand(ChatHandler* handler, Optional<std::vector<std::string>> names)
