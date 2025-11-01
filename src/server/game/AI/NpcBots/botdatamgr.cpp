@@ -121,14 +121,14 @@ public:
 
     void AbortMe()
     {
-        BOT_LOG_ERROR("npcbots", "BotBattlegroundEnterEvent: Aborting bot {} bg {}!", _botGUID.GetEntry(), uint32(_bgQueueTypeId));
+        BOT_LOG_DEBUG("npcbots", "BotBattlegroundEnterEvent: Aborting bot {} bg {}!", _botGUID.GetEntry(), uint32(_bgQueueTypeId));
         sBattlegroundMgr->GetBattlegroundQueue(_bgQueueTypeId).RemovePlayer(_botGUID, true);
         BotDataMgr::DespawnWandererBot(_botGUID.GetEntry());
     }
 
     void AbortAll()
     {
-        BOT_LOG_ERROR("npcbots", "BotBattlegroundEnterEvent: Aborting ALL bots by {} bg {}!", _playerGUID.GetCounter(), uint32(_bgQueueTypeId));
+        BOT_LOG_DEBUG("npcbots", "BotBattlegroundEnterEvent: Aborting ALL bots by {} bg {}!", _playerGUID.GetCounter(), uint32(_bgQueueTypeId));
         AbortMe();
         botBGJoinEvents.at(_playerGUID).KillAllEvents(false);
     }
