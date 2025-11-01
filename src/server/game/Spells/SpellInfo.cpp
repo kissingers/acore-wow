@@ -2251,7 +2251,7 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                         return SPELL_SPECIFIC_DRINK;
                 }
                 // scrolls effects
-                else
+                /* else
                 {
                     SpellInfo const* firstRankSpellInfo = GetFirstRankSpell();
                     switch (firstRankSpellInfo->Id)
@@ -2264,7 +2264,7 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                         case 8091: // Armor
                             return SPELL_SPECIFIC_SCROLL;
                     }
-                }
+                } */
                 break;
             }
         case SPELLFAMILY_MAGE:
