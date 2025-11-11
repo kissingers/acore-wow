@@ -122,6 +122,7 @@ class EventProcessor
         [[nodiscard]] uint64 CalculateQueueTime(uint64 delay) const;
 
         void CancelEventGroup(uint8 group);
+        bool HasEvents() const { return !m_events.empty(); }
 
     protected:
         uint64 m_time{0};
