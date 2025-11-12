@@ -5228,9 +5228,8 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
     // Ruins of Ahn'Qiraj (AQ20) — Sand Trap avoidance
     else if (unit->GetMapId() == 509)
     {
-        static const uint32 GO_SAND_TRAP = 180647; // Sand Trap
         std::list<GameObject*> sandTrapList;
-        Bcore::AllGameObjectsWithEntryInRange trapCheck(unit, GO_SAND_TRAP, 60.f);
+        Bcore::AllGameObjectsWithEntryInRange trapCheck(unit, GAMEOBJECT_SAND_TRAP, 60.f);
         Bcore::GameObjectListSearcher trapSearcher(unit, sandTrapList, trapCheck);
         Cell::VisitObjects(unit, trapSearcher, 40.f);
 
@@ -5245,7 +5244,7 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
     else if (unit->GetMapId() == 531)
     {
         static const uint32 AURA_EXPLODE = 804;
-        static const std::array<uint32, 2> MutatingBugIds = { 15316u, 15317u };
+        static const std::array<uint32, 2> MutatingBugIds = { CREATURE_MUTATING_BUG_1, CREATURE_MUTATING_BUG_2 };
         std::list<Creature*> cList;
         auto bug_check = [](Creature const* c) {
             return c && c->IsAlive() && std::ranges::find(MutatingBugIds, c->GetEntry()) != MutatingBugIds.cend() && c->HasAura(AURA_EXPLODE);
@@ -5259,6 +5258,42 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
             float radius = explodeRadius + DEFAULT_COMBAT_REACH * 1.5f;
             for (Creature const* c : cList)
                 spots.emplace_back(*c, radius);
+        }
+    }
+    // The Blood Furnace — Proximity Bombs
+    else if (unit->GetMapId() == 542)
+    {
+        std::list<GameObject*> proximityBombList;
+        static const std::array<uint32, 2> ProximityBombIds = { GAMEOBJECT_PROXIMITY_BOMB_N, GAMEOBJECT_PROXIMITY_BOMB_N };
+        auto bomb_check = [](GameObject const* go) { return go && std::ranges::find(ProximityBombIds, go->GetEntry()) != ProximityBombIds.cend(); };
+        Bcore::GameObjectListSearcher bombSearcher(unit, proximityBombList, bomb_check);
+        Cell::VisitObjects(unit, bombSearcher, 40.f);
+
+        if (!proximityBombList.empty())
+        {
+            for (GameObject const* go : proximityBombList)
+            {
+                float radius = 10.0f + go->GetObjectSize() + DEFAULT_COMBAT_REACH * 1.5f;
+                spots.emplace_back(*go, radius);
+            }
+        }
+    }
+    // Hellfire Ramparts — Liquid Fire puddles
+    if (unit->GetMapId() == 543) // Hellfire Ramparts
+    {
+        std::list<GameObject*> liquidFireList;
+        static const std::array<uint32, 3> LiquidFireIds = { GAMEOBJECT_LIQUID_FIRE_1, GAMEOBJECT_LIQUID_FIRE_2, GAMEOBJECT_LIQUID_FIRE_3 };
+        auto fire_check = [](GameObject const* go) { return go && std::ranges::find(LiquidFireIds, go->GetEntry()) != LiquidFireIds.cend(); };
+        Bcore::GameObjectListSearcher fireSearcher(unit, liquidFireList, fire_check);
+        Cell::VisitObjects(unit, fireSearcher, 40.f);
+
+        if (!liquidFireList.empty())
+        {
+            for (GameObject const* go : liquidFireList)
+            {
+                float radius = 10.0f + go->GetObjectSize() + DEFAULT_COMBAT_REACH * 1.5f;
+                spots.emplace_back(*go, radius);
+            }
         }
     }
     //Aucheai Crypts
@@ -5277,67 +5312,6 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
             float radius = spellInfo->Effects[0].CalcRadius() + DEFAULT_COMBAT_REACH * 2.0f;
             spots.emplace_back(*creature, radius);
         }
-    }
-    // Hellfire Ramparts — Liquid Fire puddles
-    if (unit->GetMapId() == 543) // Hellfire Ramparts
-    {
-        // GO entries to avoid
-        static constexpr uint32 GO_LIQUID_FIRE_1 = 180125;
-        static constexpr uint32 GO_LIQUID_FIRE_2 = 181890;
-        static constexpr uint32 GO_LIQUID_FIRE_3 = 182533;
-
-        auto scanGoEntry = [unit, &spots](uint32 entry, float scanRange, float baseRadius)
-            {
-                std::list<GameObject*> list;
-                Bcore::AllGameObjectsWithEntryInRange check(unit, entry, scanRange);
-                Bcore::GameObjectListSearcher<Bcore::AllGameObjectsWithEntryInRange> searcher(unit, list, check);
-                Cell::VisitObjects(unit, searcher, scanRange);
-
-                for (GameObject* go : list)
-                {
-                    if (!go)
-                        continue;
-
-                    float radius = baseRadius + go->GetObjectSize() + DEFAULT_COMBAT_REACH * 1.2f;
-                    spots.emplace_back(*go, radius);
-                }
-            };
-
-        constexpr float SCAN = 40.f;
-        constexpr float BASE = 12.0f;
-
-        scanGoEntry(GO_LIQUID_FIRE_1, SCAN, BASE);
-        scanGoEntry(GO_LIQUID_FIRE_2, SCAN, BASE);
-        scanGoEntry(GO_LIQUID_FIRE_3, SCAN, BASE);
-    }
-    // The Blood Furnace — Proximity Bombs
-    else if (unit->GetMapId() == 542)
-    {
-        static constexpr uint32 GO_PROXIMITY_BOMB_A = 181877;
-        static constexpr uint32 GO_PROXIMITY_BOMB_B = 182607;
-
-        auto scanBombs = [unit, &spots](uint32 entry, float scanRange, float baseRadius)
-            {
-                std::list<GameObject*> bombs;
-                Bcore::AllGameObjectsWithEntryInRange check(unit, entry, scanRange);
-                Bcore::GameObjectListSearcher<Bcore::AllGameObjectsWithEntryInRange> searcher(unit, bombs, check);
-                Cell::VisitObjects(unit, searcher, scanRange);
-
-                for (GameObject* go : bombs)
-                {
-                    if (!go)
-                        continue;
-
-                    float radius = baseRadius + go->GetObjectSize() + DEFAULT_COMBAT_REACH * 1.5f;
-                    spots.emplace_back(*go, radius);
-                }
-            };
-
-        constexpr float SCAN_RANGE = 40.f;
-        constexpr float BOMB_BASE_RADIUS = 10.0f;
-
-        scanBombs(GO_PROXIMITY_BOMB_A, SCAN_RANGE, BOMB_BASE_RADIUS);
-        scanBombs(GO_PROXIMITY_BOMB_B, SCAN_RANGE, BOMB_BASE_RADIUS);
     }
     //Magister's Terrace
     else if (unit->GetMapId() == 585)
