@@ -2047,7 +2047,7 @@ public:
         if (file_str->find('.') == std::string::npos)
             *file_str += ".sql";
 
-        switch (NPCBotsDump().Load(*file_str))
+        switch (NPCBotsDump{}.Load(*file_str))
         {
             case BOT_DUMP_SUCCESS:
                 handler->SendSysMessage("Import successful.");
@@ -2088,7 +2088,7 @@ public:
         if (file_str->find('.') == std::string::npos)
             *file_str += ".sql";
 
-        switch (NPCBotsDump().Write(*file_str))
+        switch (NPCBotsDump{}.Write(*file_str))
         {
             case BOT_DUMP_SUCCESS:
                 handler->SendSysMessage("Export successful.");
