@@ -22368,11 +22368,6 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
             if (index == UNIT_NPC_FLAGS)
             {
                 cacheValue.posPointers.UnitNPCFlagsPos = int32(fieldBuffer.wpos());
-                //npcbot: make wandering bots non-interactive for non-GM players
-                if ((m_uint32Values[UNIT_NPC_FLAGS] & UNIT_NPC_FLAG_GOSSIP) && !target->IsGameMaster() && IsNPCBotOrPet() && ToCreature()->IsWandererBot())
-                    fieldBuffer << (m_uint32Values[UNIT_NPC_FLAGS] & ~UNIT_NPC_FLAG_GOSSIP);
-                else
-                //end npcbot
                 fieldBuffer << m_uint32Values[UNIT_NPC_FLAGS];
             }
             else if (index == UNIT_FIELD_AURASTATE)
@@ -22465,6 +22460,11 @@ void Unit::PatchValuesUpdate(ByteBuffer& valuesUpdateBuf, BuildValuesCachePosPoi
 
         if (!target->CanSeeSpellClickOn(creature))
             appendValue &= ~UNIT_NPC_FLAG_SPELLCLICK;
+
+        //npcbot: make wandering bots non-interactive for non-GM players
+        if ((appendValue & UNIT_NPC_FLAG_GOSSIP) && !target->IsGameMaster() && IsNPCBotOrPet() && creature->IsWandererBot())
+            appendValue &= ~UNIT_NPC_FLAG_GOSSIP;
+        //end npcbot
 
         if (!target->CanSeeVendor(creature))
         {
