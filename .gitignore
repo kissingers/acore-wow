@@ -58,6 +58,8 @@ CMakeLists.txt.user
 #
 /.settings/
 /.externalToolBuilders/*
+/.vs
+/out
 # exclude in all levels
 nbproject/
 .sync.ffs_db
@@ -106,3 +108,5 @@ local.properties
 #NPCBots
 !/data/sql/custom/db_characters/
 !/data/sql/custom/db_world/
+.cache
+compile_commands.json

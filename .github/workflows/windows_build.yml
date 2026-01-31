@@ -2,7 +2,7 @@ name: windows-build
 on:
   push:
     branches:
-      - 'npcbots_3.3.5'
+      - 'play2bot'
       - 'CI'
   pull_request:
     types:
