@@ -2239,6 +2239,11 @@ class spell_item_noggenfogger_elixir : public SpellScript
 
     bool Load() override
     {
+        //npcbot
+        if (GetCaster()->IsNPCBot())
+            return true;
+        //end npcbot
+
         return GetCaster()->IsPlayer();
     }
 
