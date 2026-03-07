@@ -2130,7 +2130,7 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                     else if (drink)
                         return SPELL_SPECIFIC_DRINK;
                 }
-                // scrolls effects
+                /*// scrolls effects
                 else
                 {
                     SpellInfo const* firstRankSpellInfo = GetFirstRankSpell();
@@ -2144,7 +2144,7 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                         case 8091: // Armor
                             return SPELL_SPECIFIC_SCROLL;
                     }
-                }
+                }*/
                 break;
             }
         case SPELLFAMILY_MAGE:
