@@ -5882,6 +5882,7 @@ uint32 bot_ai::_selectMountSpell() const
 
     Unit::AuraEffectList const& mounts = master->GetAuraEffectsByType(SPELL_AURA_MOUNTED);
     int32 maxMountSpeed = !IAmFree() ? 0 : 999;
+    const bool master_can_fly = master->CanFly() || master->IsFreeFlying();
     if (!IAmFree())
     {
         Aura const* mountAura = nullptr;
@@ -5890,7 +5891,7 @@ uint32 bot_ai::_selectMountSpell() const
             for (uint8 i = EFFECT_0; i < MAX_SPELL_EFFECTS; ++i)
             {
                 AuraEffect const* maeff = meff->GetBase()->GetEffect(i);
-                if (maeff && (maeff->GetSpellInfo()->Effects[i].IsAura(master->CanFly() ? SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED : SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED)) &&
+                if (maeff && (maeff->GetSpellInfo()->Effects[i].IsAura(master_can_fly ? SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED : SPELL_AURA_MOD_INCREASE_MOUNTED_SPEED)) &&
                     maeff->GetAmount() > maxMountSpeed)
                 {
                     maxMountSpeed = maeff->GetAmount();
@@ -5907,7 +5908,7 @@ uint32 bot_ai::_selectMountSpell() const
 
     //Winter Veil addition
     if (sGameEventMgr->IsActiveEvent(GAME_EVENT_WINTER_VEIL))
-        myMountSpellId = master->CanFly() ? REINDEER_FLY : REINDEER;
+        myMountSpellId = master_can_fly ? REINDEER_FLY : REINDEER;
     if (!myMountSpellId && me->GetMapId() == 531) //Ahn'Qiraj
     {
         //Select AQ40 mount
@@ -5921,7 +5922,7 @@ uint32 bot_ai::_selectMountSpell() const
     {
         using MountArray = std::array<uint32, NUM_MOUNTS_PER_SPEED>;
 
-        bool can_fly = !IAmFree() ? master->CanFly() : false; //(!instt && me->GetMap()->GetEntry()->addon > 0);
+        bool can_fly = !IAmFree() && master_can_fly; //(!instt && me->GetMap()->GetEntry()->addon > 0);
         bool useSlowMount = can_fly ? (me->GetLevel() < 70 || maxMountSpeed < 220) : (me->GetLevel() < minLevel100 || maxMountSpeed < 80);
 
         if (!can_fly)
@@ -19432,18 +19433,28 @@ void bot_ai::GetHomePosition(uint16& mapid, Position* pos) const
 }
 
 //WANDER NODES
-/*static */bool bot_ai::IsWanderNodeAvailableForBotFaction(WanderNode const* wp, uint32 factionTemplateId, bool teleport)
+/*static */bool bot_ai::IsWanderNodeAvailableForBotFaction(WanderNode const* wp, uint32 factionTemplateId, bool teleport, bool spawn)
 {
-    if (!teleport)
+    if (!teleport && !spawn && wp->HasFlag(BotWPFlags::BOTWP_FLAG_MOVEMENT_IGNORES_FACTION))
+        return true;
+
+    MapEntry const* mapEntry = sMapStore.LookupEntry(wp->GetMapId());
+    if (teleport && !mapEntry->IsContinent())
+        return false;
+
+    if ((teleport || spawn) && (wp->GetLevels().second <= 10 || mapEntry->IsBattlegroundOrArena()))
     {
-        if (wp->HasFlag(BotWPFlags::BOTWP_FLAG_MOVEMENT_IGNORES_FACTION))
-            return true;
-    }
-    else
-    {
-        MapEntry const* mapEntry = sMapStore.LookupEntry(wp->GetMapId());
-        if (!mapEntry->IsContinent())
-            return false;
+        switch (BotDataMgr::GetTeamIdForFaction(factionTemplateId))
+        {
+            case TEAM_ALLIANCE:
+                return wp->HasFlag(BotWPFlags::BOTWP_FLAG_ALLIANCE_ONLY);
+            case TEAM_HORDE:
+                return wp->HasFlag(BotWPFlags::BOTWP_FLAG_HORDE_ONLY);
+            case TEAM_NEUTRAL:
+                return true;
+            default:
+                return true;
+        }
     }
 
     switch (BotDataMgr::GetTeamIdForFaction(factionTemplateId))
