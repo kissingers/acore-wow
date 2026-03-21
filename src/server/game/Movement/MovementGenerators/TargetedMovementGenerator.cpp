@@ -255,10 +255,17 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     {
         i_recalculateTravel = false;
         i_path = nullptr;
-        if (cOwner)
-            cOwner->SetCannotReachTarget();
         owner->ClearUnitState(UNIT_STATE_CHASE_MOVE);
         owner->SetInFront(target);
+
+        if (cOwner)
+        {
+            if (cOwner->IsWithinMeleeRange(target))
+                cOwner->SetCannotReachTarget();
+            else
+                cOwner->SetCannotReachTarget(target->GetGUID());
+        }
+
         MovementInform(owner);
     }
 
@@ -430,12 +437,24 @@ void ChaseMovementGenerator<T>::MovementInform(T* owner)
 
 //-----------------------------------------------//
 
+static float GetTargetSpeedInMotion(Unit* target)
+{
+    if (!target->movespline->Finalized())
+        return target->movespline->Velocity();
+
+    return target->GetSpeed(target->m_movementInfo.GetSpeedType());
+}
+
 static Optional<float> GetVelocity(Unit* owner, Unit* target, G3D::Vector3 const& dest, bool playerPet)
 {
     Optional<float> speed = {};
+    if (owner->IsInCombat() || owner->IsVehicle() || owner->HasUnitFlag(UNIT_FLAG_POSSESSED))
+        return speed;
+
+    bool isPetLike = owner->IsPet() || owner->IsGuardian() || owner->GetGUID() == target->GetCritterGUID() || owner->GetCharmerOrOwnerGUID() == target->GetGUID();
 
     //npcbot
-    if (owner->IsNPCBotPet() && !owner->IsInCombat() && !owner->HasUnitFlag(UNIT_FLAG_POSSESSED) && (target->GetGUID() == owner->GetOwnerGUID() || target->GetGUID() == owner->GetCreatorGUID()))
+    if (owner->IsNPCBotPet() && (target->GetGUID() == owner->GetOwnerGUID() || target->GetGUID() == owner->GetCreatorGUID()))
     {
         UnitMoveType moveType = Movement::SelectSpeedType(target->GetUnitMovementFlags());
         speed = target->GetSpeed(moveType);
@@ -456,17 +475,11 @@ static Optional<float> GetVelocity(Unit* owner, Unit* target, G3D::Vector3 const
     }
     else
     //end npcbot
-    if (!owner->IsInCombat() && !owner->IsVehicle() && !owner->HasUnitFlag(UNIT_FLAG_POSSESSED) &&
-        (owner->IsPet() || owner->IsGuardian() || owner->GetGUID() == target->GetCritterGUID() || owner->GetCharmerOrOwnerGUID() == target->GetGUID()))
+    // For pets/guardians/critters or creature-to-creature follow: sync with target's speed
+    if (isPetLike || (owner->IsCreature() && target->IsCreature()))
     {
-        uint32 moveFlags = target->GetUnitMovementFlags();
-        if (target->IsWalking())
-        {
-            moveFlags |= MOVEMENTFLAG_WALKING;
-        }
+        speed = GetTargetSpeedInMotion(target);
 
-        UnitMoveType moveType = Movement::SelectSpeedType(moveFlags);
-        speed = target->GetSpeed(moveType);
         if (playerPet)
         {
             float distance = owner->GetDistance2d(dest.x, dest.y) - target->GetObjectSize() - (*speed / 2.f);
@@ -485,7 +498,7 @@ static Position const PredictPosition(Unit* target)
 {
     Position pos = target->GetPosition();
     // 0.5 - it's time (0.5 sec) between starting movement opcode (e.g. MSG_MOVE_START_FORWARD) and MSG_MOVE_HEARTBEAT sent by client
-    float speed = target->GetSpeed(Movement::SelectSpeedType(target->GetUnitMovementFlags())) * 0.5f;
+    float speed = target->GetSpeed(target->m_movementInfo.GetSpeedType()) * 0.5f;
     float orientation = target->GetOrientation();
 
     if (target->m_movementInfo.HasMovementFlag(MOVEMENTFLAG_FORWARD))

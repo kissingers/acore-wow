@@ -709,7 +709,7 @@ void Map::RemovePlayerFromMap(Player* player, bool remove)
 {
     UpdatePlayerZoneStats(player->GetZoneId(), MAP_INVALID_ZONE);
 
-    player->getHostileRefMgr().deleteReferences(true); // pussywizard: multithreading crashfix
+    player->GetThreatMgr().RemoveMeFromThreatLists(); // pussywizard: multithreading crashfix
 
     player->RemoveFromWorld();
     SendRemoveTransports(player);
@@ -738,8 +738,6 @@ void Map::RemoveFromMap(T* obj, bool remove)
     {
         if (obj->IsNPCBot())
         {
-            obj->getHostileRefMgr().deleteReferences(true);
-
             obj->RemoveFromWorld();
 
             if (obj->IsInGrid())
