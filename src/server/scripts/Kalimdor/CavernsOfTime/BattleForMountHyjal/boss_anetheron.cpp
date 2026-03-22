@@ -49,10 +49,6 @@ public:
     boss_anetheron(Creature* creature) : BossAI(creature, DATA_ANETHERON)
     {
         _recentlySpoken = false;
-        scheduler.SetValidator([this]
-            {
-                return !me->HasUnitState(UNIT_STATE_CASTING);
-            });
     }
 
     void JustEngagedWith(Unit * who) override
