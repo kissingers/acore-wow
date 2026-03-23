@@ -279,11 +279,6 @@ public:
 
     bool OnTrigger(Player* player, AreaTrigger const* /*at*/) override
     {
-        if (player->IsGameMaster())
-        {
-            return false;
-        }
-
         if (InstanceScript* instance = player->GetInstanceScript())
         {
             if (Creature* beast = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_THE_BEAST)))
@@ -305,11 +300,6 @@ public:
 
     bool OnTrigger(Player* player, AreaTrigger const* /*at*/) override
     {
-        if (player->IsGameMaster())
-        {
-            return false;
-        }
-
         if (InstanceScript* instance = player->GetInstanceScript())
         {
             if (Creature* beast = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_THE_BEAST)))
