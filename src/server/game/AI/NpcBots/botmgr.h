@@ -267,10 +267,10 @@ class AC_GAME_API BotMgr
         uint8 GetNpcBotSlotByRole(uint32 roles, Creature const* bot) const;
         uint32 GetAllNpcBotsClassMask() const;
         static uint8 GetMaxNpcBots(uint8 level);
-        static uint8 GetNpcBotXpReduction();
-        static uint8 GetNpcBotXpReductionStartingNumber();
-        static bool GetNpcBotXpReductionBlizzlikeEnabled();
-        static bool GetNpcBotXpReductionBlizzlikeGroupOnly();
+        static bool IsNpcBotXpReductionEnabled();
+        static bool IsNpcBotXpReductionGroupOnly();
+        static uint8 GetNpcBotXpReductionExtraAmount();
+        static uint8 GetNpcBotXpReductionExtraStartingNumber();
         static bool GetNpcBotMoneyShareEnabled();
         static bool GetNpcBotMoneyShareGroupOnly();
         static uint8 GetNpcBotMountLevel60();
