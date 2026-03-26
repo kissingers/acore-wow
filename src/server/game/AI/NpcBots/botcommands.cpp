@@ -2246,7 +2246,7 @@ public:
         }
 
         bot_ai::BotOrder order(BOT_ORDER_PULL);
-        order.params.pullParams.targetGuid = target_guid.GetRawValue();
+        order.params.pullParams.targetGuid = target_guid;
 
         if (bot->GetBotAI()->AddOrder(std::move(order)))
         {
@@ -2454,7 +2454,7 @@ public:
 
         bot_ai::BotOrder order(BOT_ORDER_SPELLCAST);
         order.params.spellCastParams.baseSpell = base_spell;
-        order.params.spellCastParams.targetGuid = target_guid.GetRawValue();
+        order.params.spellCastParams.targetGuid = target_guid;
 
         if (bot->GetBotAI()->AddOrder(std::move(order)))
         {
@@ -3369,7 +3369,7 @@ public:
 
         uint8 localeIndex = handler->GetSessionDbLocaleIndex();
         CreatureTemplateContainer const* ctc = sObjectMgr->GetCreatureTemplates();
-        typedef std::vector<BotInfo> BotList;
+        using BotList = std::vector<BotInfo>;
         BotList botlist;
         for (CreatureTemplateContainer::const_iterator itr = ctc->begin(); itr != ctc->end(); ++itr)
         {

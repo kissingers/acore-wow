@@ -17039,7 +17039,7 @@ void bot_ai::_ProcessOrders()
 
             SetBotCommandState(BOT_COMMAND_ISSUED_ORDER);
 
-            ObjectGuid guid(order.params.spellCastParams.targetGuid);
+            ObjectGuid guid = order.params.spellCastParams.targetGuid;
             if (guid == me->GetGUID())
                 target = me;
             else if (guid == master->GetGUID())
@@ -17053,14 +17053,14 @@ void bot_ai::_ProcessOrders()
             }
             else
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid spellCastParams.targetGuid {}!", ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
+                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid spellCastParams.targetGuid {}!", order.params.spellCastParams.targetGuid.ToString());
                 CancelOrder(order);
                 return;
             }
 
             if (!target || !target->IsInWorld())
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!",  ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
+                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!",  order.params.spellCastParams.targetGuid.ToString());
                 CancelOrder(order);
                 return;
             }
@@ -17081,23 +17081,23 @@ void bot_ai::_ProcessOrders()
             SetBotCommandState(BOT_COMMAND_ISSUED_ORDER);
 
             if (order.params.pullParams.targetGuid)
-                target = ObjectAccessor::GetUnit(*me, ObjectGuid(order.params.pullParams.targetGuid));
+                target = ObjectAccessor::GetUnit(*me, order.params.pullParams.targetGuid);
             else
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid pullParams.targetGuid {}!", order.params.pullParams.targetGuid);
+                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid pullParams.targetGuid {}!", order.params.pullParams.targetGuid.ToString());
                 CancelOrder(order);
                 return;
             }
 
             if (!target || !target->IsInWorld())
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!", order.params.pullParams.targetGuid);
+                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!", order.params.pullParams.targetGuid.ToString());
                 CancelOrder(order);
                 return;
             }
             if (!target->IsAlive() || target->IsInCombat() || !CanBotAttack(target))
             {
-                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} cannot be pulled!", order.params.pullParams.targetGuid);
+                BOT_LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} cannot be pulled!", order.params.pullParams.targetGuid.ToString());
                 CancelOrder(order);
                 return;
             }
@@ -17123,7 +17123,7 @@ bool bot_ai::IsLastOrder(BotOrderTypes order_type, uint32 param1, ObjectGuid gui
                         return true;
                     break;
                 case BOT_ORDER_PULL:
-                    if (!guidparam1 || order.params.pullParams.targetGuid == guidparam1.GetRawValue())
+                    if (!guidparam1 || order.params.pullParams.targetGuid == guidparam1)
                         return true;
                     break;
                 default:

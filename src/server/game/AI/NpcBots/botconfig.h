@@ -27,9 +27,9 @@ class Map;
 
 template<typename U>
 using BotBrackets = std::array<U, BRACKETS_COUNT>;
-typedef BotBrackets<uint8> LvlBrackets;
-typedef BotBrackets<uint32> PctBrackets;
-typedef BotBrackets<uint32> ItemLvlBrackets;
+using LvlBrackets = BotBrackets<uint8>;
+using PctBrackets = BotBrackets<uint32>;
+using ItemLvlBrackets = BotBrackets<uint32>;
 
 class AC_GAME_API BotCfg
 {
@@ -136,5 +136,7 @@ public:
 private:
     static uint32 _normalizedCostForLevel(uint32 cost_base, uint8 bot_class, uint8 level);
 };
+
+void AddNpcBotScripts();
 
 #endif
