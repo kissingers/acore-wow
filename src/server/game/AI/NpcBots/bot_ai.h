@@ -45,6 +45,8 @@ class Unit;
 class Vehicle;
 class WanderNode;
 
+using AoeSafeSpotsVec = std::vector<Position>;
+
 class bot_ai : public CreatureAI
 {
     public:

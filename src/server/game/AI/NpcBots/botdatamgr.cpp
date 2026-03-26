@@ -1,6 +1,7 @@
 #include "BattlegroundMgr.h"
 #include "BattlegroundQueue.h"
 #include "bot_ai.h"
+#include "botconfig.h"
 #include "botdatamgr.h"
 #include "botgearscore.h"
 #include "botlog.h"
@@ -267,13 +268,13 @@ private:
         ASSERT(next_bot_id > BOT_ENTRY_BEGIN);
 
         for (uint8 c = BOT_CLASS_WARRIOR; c < BOT_CLASS_END; ++c)
-            if (BotMgr::IsWanderingClassEnabled(c) && _spareBotIdsPerClassMap.find(c) == _spareBotIdsPerClassMap.cend())
+            if (BotCfg::IsWanderingClassEnabled(c) && _spareBotIdsPerClassMap.find(c) == _spareBotIdsPerClassMap.cend())
                 _spareBotIdsPerClassMap.insert({ c, {} });
 
         for (decltype(_botsExtras)::value_type const& vt : _botsExtras)
         {
             uint8 c = vt.second->bclass;
-            if (c != BOT_CLASS_NONE && BotMgr::IsWanderingClassEnabled(c))
+            if (c != BOT_CLASS_NONE && BotCfg::IsWanderingClassEnabled(c))
             {
                 ++enabledBotsCount;
                 if (_botsData.find(vt.first) == _botsData.end())
@@ -334,11 +335,11 @@ private:
         bot_template = *orig_template;
         bot_template.Entry = next_bot_id;
         bot_template.SubName = "";
-        bot_template.speed_run = BotMgr::GetBotWandererSpeedMod();
+        bot_template.speed_run = BotCfg::GetBotWandererSpeedMod();
         bot_template.KillCredit[0] = orig_entry;
 
         uint32 max_level = DEFAULT_MAX_LEVEL;
-        if (bracketEntry && BotMgr::IsBotLevelCappedByConfigBG())
+        if (bracketEntry && BotCfg::IsBotLevelCappedByConfigBG())
         {
             uint32 max_expansion_level;
             switch (sWorld->getIntConfig(CONFIG_EXPANSION))
@@ -510,7 +511,7 @@ public:
             for (auto const& kv : _spareBotIdsPerClassMap)
                 for (uint32 spareBotId : kv.second)
                     teamSpareBotIdsPerClass.push_back({kv.first, spareBotId});
-            bracketPcts = BotMgr::GetBotWandererLevelBrackets();
+            bracketPcts = BotCfg::GetBotWandererLevelBrackets();
         }
         else
         {
@@ -1280,12 +1281,12 @@ void BotDataMgr::LoadNpcBotMgrData()
             if (engage_delay_dps > 10 * IN_MILLISECONDS)
             {
                 BOT_LOG_WARN("server.loading", "Bot dps engage timer has invalid value {} for player {}, reduced!", engage_delay_dps, player_guid.GetCounter());
-                engage_delay_dps = BotMgr::GetEngageDelayDPSDefault();
+                engage_delay_dps = BotCfg::GetEngageDelayDPSDefault();
             }
             if (engage_delay_heal > 10 * IN_MILLISECONDS)
             {
                 BOT_LOG_WARN("server.loading", "Bot heal engage timer has invalid value {} for player {}, reduced!", engage_delay_heal, player_guid.GetCounter());
-                engage_delay_heal = BotMgr::GetEngageDelayHealDefault();
+                engage_delay_heal = BotCfg::GetEngageDelayHealDefault();
             }
             if (flags & ~NPCBOT_MGR_FLAG_MASK_ALL_ALLOWED)
             {
@@ -1352,7 +1353,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
     all_spawn_nodes.reserve(wres->GetRowCount() >> 8);
     for (SpawnMapEx* smap : { &spawn_node_exists_a, &spawn_node_exists_h, &spawn_node_exists_n })
         for (uint32 mapId : ALL_CONTINENT_MAPS)
-            if (BotMgr::IsBotGenerationEnabledWorldMapId(mapId))
+            if (BotCfg::IsBotGenerationEnabledWorldMapId(mapId))
                 smap->emplace(mapId, false);
 
     uint32 disabled_nodes = 0;
@@ -1436,7 +1437,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
             }
         }
 
-        if (!force_all_maps && mapEntry->IsContinent() && !BotMgr::IsBotGenerationEnabledWorldMapId(mapId))
+        if (!force_all_maps && mapEntry->IsContinent() && !BotCfg::IsBotGenerationEnabledWorldMapId(mapId))
         {
             ++disabled_nodes;
             continue;
@@ -1538,7 +1539,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
     uint8 max_spawn_level = 0;
     for (WanderNode const* wp : all_spawn_nodes)
     {
-        if (sMapStore.LookupEntry(wp->GetMapId())->IsContinent() && BotMgr::IsBotGenerationEnabledWorldMapId(wp->GetMapId()))
+        if (sMapStore.LookupEntry(wp->GetMapId())->IsContinent() && BotCfg::IsBotGenerationEnabledWorldMapId(wp->GetMapId()))
         {
             auto [minLevel, maxLevel] = wp->GetLevels();
             min_spawn_level = std::min<uint32>(min_spawn_level, minLevel);
@@ -1683,7 +1684,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
 
 void BotDataMgr::GenerateWanderingBots()
 {
-    const uint32 wandering_bots_desired = BotMgr::GetDesiredWanderingBotsCount();
+    const uint32 wandering_bots_desired = BotCfg::GetDesiredWanderingBotsCount();
 
     if (wandering_bots_desired == 0)
         return;
@@ -1714,7 +1715,7 @@ void BotDataMgr::GenerateWanderingBots()
 
 bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unused]] Group const* group, BattlegroundQueue* queue, PvPDifficultyEntry const* bracketEntry, GroupQueueInfo const* gqinfo)
 {
-    if (!BotMgr::IsBotGenerationEnabledBGs())
+    if (!BotCfg::IsBotGenerationEnabledBGs())
         return true;
 
     BattlegroundTypeId bgTypeId = gqinfo->BgTypeId;
@@ -1723,7 +1724,7 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
     BattlegroundBracketId bracketId = bracketEntry->GetBracketId();
     BattlegroundQueueTypeId bgqTypeId = sBattlegroundMgr->BGQueueTypeId(bgTypeId, atype);
 
-    uint32 tarteamplayers = BotMgr::GetBGTargetTeamPlayersCount(bgTypeId);
+    uint32 tarteamplayers = BotCfg::GetBGTargetTeamPlayersCount(bgTypeId);
 
     if (tarteamplayers == 0)
     {
@@ -1859,7 +1860,7 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
         sBattlegroundMgr->ScheduleQueueUpdate(ammr, atype, bgqTypeId, bgTypeId, bracketId);
     }, Seconds(2));
 
-    uint8 maxlevel = BotMgr::IsBotLevelCappedByConfigBGFirstPlayer() ? groupLeader->GetLevel() : 0;
+    uint8 maxlevel = BotCfg::IsBotLevelCappedByConfigBGFirstPlayer() ? groupLeader->GetLevel() : 0;
     for (NpcBotRegistry const* registry3 : { &spawned_bots_a, &spawned_bots_h })
     {
         uint32 seconds_delay = 5;
@@ -2386,7 +2387,7 @@ Item* BotDataMgr::GenerateWanderingBotItem(uint8 slot, uint8 botclass, uint8 lev
     {
         ItemIdVector validVec;
         validVec.reserve(itemIdVec->size());
-        uint32 maxItemLevel = BotMgr::GetBotWandererMaxItemLevel(level);
+        uint32 maxItemLevel = BotCfg::GetBotWandererMaxItemLevel(level);
         for (uint32 maxLvl : { maxItemLevel, static_cast<decltype(maxItemLevel)>(0) })
         {
             if (!validVec.empty())
@@ -2664,7 +2665,7 @@ void BotDataMgr::AddNpcBotData(uint32 entry, uint32 roles, uint8 spec, uint32 fa
         return;
     }
 
-    BOT_LOG_ERROR("sql.sql", "BotMgr::AddNpcBotData(): trying to add new data but entry already exists! entry = {}", entry);
+    BOT_LOG_ERROR("sql.sql", "BotDataMgr::AddNpcBotData(): trying to add new data but entry already exists! entry = {}", entry);
 }
 NpcBotData const* BotDataMgr::SelectNpcBotData(uint32 entry)
 {
@@ -3294,7 +3295,7 @@ uint32 BotDataMgr::GetTeamForFaction(uint32 factionTemplateId)
 
 bool BotDataMgr::CanDepositBotBankItemsCount(ObjectGuid playerGuid, uint32 items_count)
 {
-    if (uint32 capacity = BotMgr::GetGearBankCapacity())
+    if (uint32 capacity = BotCfg::GetGearBankCapacity())
     {
         uint32 stored_count = GetBotBankItemsCount(playerGuid);
         if (stored_count + items_count > capacity)
@@ -3439,7 +3440,7 @@ NpcBotMgrData* BotDataMgr::SelectOrCreateNpcBotMgrData(ObjectGuid playerGuid)
     if (bmci == _botMgrsData.cend())
     {
         CharacterDatabase.Execute("INSERT INTO characters_npcbot_settings (owner) VALUES ({})", playerGuid.GetCounter());
-        _botMgrsData[playerGuid] = new NpcBotMgrData(BotMgr::GetFollowDistDefault(), 0, BOT_ATTACK_RANGE_SHORT, BOT_ATTACK_ANGLE_NORMAL, 0, 0, 0);
+        _botMgrsData[playerGuid] = new NpcBotMgrData(BotCfg::GetFollowDistDefault(), 0, BOT_ATTACK_RANGE_SHORT, BOT_ATTACK_ANGLE_NORMAL, 0, 0, 0);
         mgrData = _botMgrsData.at(playerGuid);
     }
     else
