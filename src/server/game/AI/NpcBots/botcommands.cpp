@@ -22,7 +22,6 @@
 #include "Item.h"
 #include "Log.h"
 #include "Map.h"
-#include "MapMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -699,7 +698,6 @@ public:
             { "lookup",     HandleNpcBotLookupCommand,              rbac::RBAC_PERM_COMMAND_NPCBOT_LOOKUP,             Console::Yes },
             { "list",       npcbotListCommandTable                                                                                  },
             { "revive",     HandleNpcBotReviveCommand,              rbac::RBAC_PERM_COMMAND_NPCBOT_REVIVE,             Console::No  },
-            { "reloadconfig",HandleNpcBotReloadConfigCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_RELOADCONFIG,       Console::Yes },
             { "useonbot",   npcbotUseOnBotCommandTable                                                                              },
             { "command",    npcbotCommandCommandTable                                                                               },
             { "info",       HandleNpcBotInfoCommand,                rbac::RBAC_PERM_COMMAND_NPCBOT_INFO,               Console::Yes },
@@ -5072,17 +5070,6 @@ public:
         handler->SendSysMessage("NpcBot is NOT added for some reason!");
         handler->SetSentErrorMessage(true);
         return false;
-    }
-
-    static bool HandleNpcBotReloadConfigCommand(ChatHandler* handler)
-    {
-        BOT_LOG_INFO("misc", "Re-Loading config settings...");
-        sWorld->LoadConfigSettings(true);
-        sMapMgr->InitializeVisibilityDistanceInfo();
-        handler->SendGlobalGMSysMessage("World config settings reloaded.");
-        BotMgr::ReloadConfig();
-        handler->SendGlobalGMSysMessage("NpcBot config settings reloaded.");
-        return true;
     }
 };
 
