@@ -261,7 +261,7 @@ public:
                         //BOT_LOG_ERROR("entities.unit", "HIRE_NBOT_ENTRY: bot %u (%s) is unavailable all of the sudden!", entry);
                         std::ostringstream failMsg;
                         failMsg << bot->GetName() << bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER__BOT_BUSY);
-                        WhisperTo(player, me, failMsg.str().c_str());
+                        WhisperTo(player, me, failMsg.view());
                         break;
                     }
 
@@ -283,7 +283,7 @@ public:
             return true;
         }
 
-        void WhisperTo(Player* player, Creature* me, char const* message)
+        void WhisperTo(Player* player, Creature* me, std::string_view message)
         {
             me->Whisper(message, LANG_UNIVERSAL, player);
         }

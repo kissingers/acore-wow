@@ -38,6 +38,7 @@
 #include "WorldDatabase.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
+#include <ranges>
 
 /*
 Name: script_bot_commands
@@ -97,6 +98,7 @@ enum rbac
 //end Acore only
 #endif
 
+using namespace std::string_view_literals;
 using namespace Bcore::ChatCommands;
 
 static uint32 last_model_id = 0;
@@ -332,7 +334,7 @@ private:
                 default:                                                                   break;
             }
 
-            handler->SendSysMessage(stream.str());
+            handler->SendSysMessage(stream.view());
         }
 #undef FILL_VISUALS_REPORT2
     }
@@ -451,9 +453,9 @@ private:
 
     struct BotInfo
     {
-        BotInfo(uint32 Id, std::string&& Name, uint8 Race) : id(Id), name(std::move(Name)), race(Race) {}
+        BotInfo(uint32 Id, std::string_view&& Name, uint8 Race) : id(Id), name(std::move(Name)), race(Race) {}
         uint32 id;
-        std::string name;
+        std::string_view name;
         uint8 race;
 
         inline constexpr bool operator==(BotInfo const& other) const noexcept { return id == other.id; }
@@ -563,6 +565,7 @@ public:
             { "model",      HandleNpcBotDebugModelCommand,          rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_VISUAL,       Console::No  },
             { "spellvisual",HandleNpcBotDebugSpellVisualCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_VISUAL,       Console::No  },
             { "states",     HandleNpcBotDebugStatesCommand,         rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES,       Console::No  },
+            { "names",      HandleNpcBotDebugNamesCommand,          rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES,       Console::No  },
             { "spells",     HandleNpcBotDebugSpellsCommand,         rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES,       Console::No  },
             { "guids",      HandleNpcBotDebugGuidsCommand,          rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES,       Console::No  },
             { "wbequips",   HandleNpcBotDebugWBEquipsCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES,       Console::Yes },
@@ -802,7 +805,7 @@ public:
                 poiName += " - ";
                 poiName += aProto->name2;
             }
-            poiName.erase(std::remove_if(std::begin(poiName), std::end(poiName), [](char c) { return c == '\''; }), poiName.end());
+            std::erase_if(poiName, [](char c) { return c == '\''; });
             uint32 poiMapId = aProto->mapId;
             float x = aProto->x;
             float y = aProto->y;
@@ -821,7 +824,7 @@ public:
                 continue;
             }
 
-            WanderNode* wp = new WanderNode(poiId, poiMapId, x, y, z, o, poiZoneId, poiAreaId, poiName);
+            WanderNode* wp = new WanderNode(poiId, poiMapId, x, y, z, o, poiZoneId, poiAreaId, std::move(poiName));
             auto [minl, maxl] = GetZoneLevels(poiZoneId);
             wp->SetLevels(minl, maxl);
             BotWPFlags flags = BotWPFlags::BOTWP_FLAG_NONE;
@@ -939,7 +942,7 @@ public:
             ss << "\n" << ++counter << ") -> " << wlp.wp->ToString(static_cast<int32>(wlp.weight)) << " (dist2d: " << wp->GetExactDist2d(wlp.wp) << ")";
         });
 
-        handler->SendSysMessage(ss.str());
+        handler->SendSysMessage(ss.view());
 
         std::array vis_spell_ids = { static_cast<uint32>(2400u), 41637u };
         WanderNode::DoForContainerWPs(to_links, [=](WanderNode const* lwp) {
@@ -1480,7 +1483,7 @@ public:
         uint32 zoneId, areaId;
         player->GetZoneAndAreaId(zoneId, areaId);
         WanderNode* wp = new WanderNode(++WanderNode::nextWPId, player->GetMapId(), player->m_positionX, player->m_positionY, player->m_positionZ,
-            player->GetOrientation(), zoneId, areaId, *name);
+            player->GetOrientation(), zoneId, areaId, std::move(*name));
 
         wp->SetLevels((!minlevel && !maxlevel) ? GetZoneLevels(GetZoneIdOverride(zoneId)) : std::pair{minlevel ? *minlevel : uint8(1), maxlevel ? *maxlevel : uint8(DEFAULT_MAX_LEVEL)});
         wp->SetFlags(BotWPFlags(*flags));
@@ -1508,7 +1511,7 @@ public:
         ASSERT_NOTNULL(HandleWPSummon(wp, player->GetMap()));
 
         uint32 wpId = wp->GetWPId();
-        std::string wpName = wp->GetName();
+        std::string_view wpName = wp->GetName();
         auto [minl, maxl] = wp->GetLevels();
         uint32 wpFlags = wp->GetFlags();
 
@@ -1520,7 +1523,7 @@ public:
             << ',' << wp->GetZoneId() << ',' << wp->GetAreaId() << ',' << uint32(minl) << ',' << uint32(maxl)
             << ',' << wpFlags << ",'" << wpName << "','" << wp->FormatLinks() << "')";
 
-        WorldDatabase.Execute(ss.str().c_str());
+        WorldDatabase.Execute(ss.view().data());
 
         handler->PSendSysMessage("Created WP {} '{}' levels {}-{} flags {}", wpId, wpName, uint32(minl), uint32(maxl), wpFlags);
 
@@ -1540,7 +1543,7 @@ public:
         }
 
         uint32 wpId = wp->GetWPId();
-        std::string wpName = wp->GetName();
+        std::string_view wpName = wp->GetName();
 
         HandleWPUpdateLinks(handler, wp, {}, false, true);
         WanderNode::RemoveWP(wp);
@@ -1571,16 +1574,16 @@ public:
         AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaId);
 
         std::ostringstream ss;
-        ss << "Zone " << zoneId << " (" << std::string(zone ? zone->area_name[0] : "unknown") << ") wps:";
+        ss << "Zone " << zoneId << " (" << std::string_view(zone ? zone->area_name[0] : "unknown") << ") wps:";
         WanderNode::DoForAllZoneWPs(zoneId, [&ss](WanderNode const* wp) {
             ss << "\n" << wp->ToString();
         });
-        ss << "\nArea " << areaId << " (" << std::string(area ? area->area_name[0] : "unknown") << ") wps:";
+        ss << "\nArea " << areaId << " (" << std::string_view(area ? area->area_name[0] : "unknown") << ") wps:";
         WanderNode::DoForAllAreaWPs(areaId, [&ss](WanderNode const* wp) {
             ss << "\n" << wp->ToString();
         });
 
-        handler->SendSysMessage(ss.str());
+        handler->SendSysMessage(ss.view());
         return true;
     }
     static bool HandleNpcBotWPListAllCommand(ChatHandler* handler)
@@ -1775,8 +1778,8 @@ public:
         std::ostringstream ss;
         for (uint32 wpid : wander_node_deletes)
             ss << wpid << ',';
-        std::string wp_range_str = ss.str();
-        wp_range_str.resize(wp_range_str.size() - 1u);
+        std::string_view wp_range_str = ss.view();
+        wp_range_str.remove_suffix(1);
         trans->Append("DELETE FROM `creature_template_npcbot_wander_nodes` WHERE id IN ({})", wp_range_str);
         ss.str("");
         ss << "INSERT INTO `creature_template_npcbot_wander_nodes` (id,mapid,x,y,z,o,zoneid,areaid,minlevel,maxlevel,flags,name,links) VALUES ";
@@ -1787,13 +1790,12 @@ public:
                 << ',' << wp->GetZoneId() << ',' << wp->GetAreaId() << ',' << uint32(minl) << ',' << uint32(maxl)
                 << ',' << wp->GetFlags() << ",'" << wp->GetName() << "','" << wp->FormatLinks() << "'),";
         });
-        std::string val_str = ss.str();
-        val_str.resize(val_str.size() - 1u);
-        trans->Append(val_str.c_str());
+        std::string_view val_str = ss.view();
+        val_str.remove_suffix(1);
+        trans->Append(val_str.data());
         WorldDatabase.CommitTransaction(trans);
 
         handler->SendSysMessage("Reid complete.");
-
         return true;
     }
 
@@ -1859,7 +1861,7 @@ public:
                             }
                         }
                     }
-                    handler->PSendSysMessage("{}", ss.str());
+                    handler->SendSysMessage(ss.view());
                     ss.str("");
                 }
             }
@@ -1887,28 +1889,85 @@ public:
             << "\n  creator2 guid:\n" << (target->GetCreator() ? target->GetCreator()->GetGUID().ToString() : std::string{})
             << "\n  owner guid:\n" << target->GetOwnerGUID().ToString();
 
-        handler->SendSysMessage(gss.str());
+        handler->SendSysMessage(gss.view());
         return true;
     }
 
-    static bool HandleNpcBotDebugSpellsCommand(ChatHandler* /*handler*/)
+    static bool HandleNpcBotDebugNamesCommand(ChatHandler* handler, Optional<std::string_view> name)
     {
-        //Unit* target = handler->getSelectedUnit();
-        //if (!target)
-        //{
-        //    handler->SendSysMessage("No target selected");
-        //    return true;
-        //}
+        Creature* target = handler->getSelectedCreature();
+        if (!target || !name)
+        {
+            handler->SendSysMessage("Syntax: .npcbot debug names #name");
+            return true;
+        }
 
-        //std::ostringstream ostr;
-        //ostr << "Listing spells for " << target->GetName() << ':';
-        //for (uint8 i = 0; i < CURRENT_MAX_SPELL; ++i)
-        //{
-        //    if (Spell const* curSpell = target->GetCurrentSpell(CurrentSpellTypes(i)))
-        //        ostr << "\nSpell type " << uint32(i) << ":\n" << curSpell->GetDebugInfo();
-        //}
+        //CreatureTemplate const* ci = target->GetCreatureTemplate();
+        //LocaleConstant loc = LocaleConstant(handler->GetSessionDbLocaleIndex());
 
-        //handler->SendSysMessage(ostr.str().c_str());
+        //WorldPackets::Query::QueryCreatureResponse queryTemp;
+        //std::string locName(*name);
+        //std::string locTitle = ci->Title;
+        //if (CreatureLocale const* cl = sObjectMgr->GetCreatureLocale(ci->Entry))
+        //{
+        //    //ObjectMgr::GetLocaleString(cl->Name, loc, locName);
+        //    ObjectMgr::GetLocaleString(cl->Title, loc, locTitle);
+        //}
+        //queryTemp.CreatureID = ci->Entry;
+        //queryTemp.Allow = true;
+        //queryTemp.Stats.Name = std::move(locName);
+        //queryTemp.Stats.Title = std::move(locTitle);
+        //queryTemp.Stats.CursorName = ci->IconName;
+        //queryTemp.Stats.Flags = ci->type_flags;
+        //queryTemp.Stats.CreatureType = ci->type;
+        //queryTemp.Stats.CreatureFamily = ci->family;
+        //queryTemp.Stats.Classification = ci->rank;
+        //memcpy(queryTemp.Stats.ProxyCreatureID, ci->KillCredit, sizeof(uint32) * MAX_KILL_CREDIT);
+        //queryTemp.Stats.CreatureDisplayID[0] = ci->GetModelByIdx(0);
+        //queryTemp.Stats.CreatureDisplayID[1] = ci->GetModelByIdx(1);
+        //queryTemp.Stats.CreatureDisplayID[2] = ci->GetModelByIdx(2);
+        //queryTemp.Stats.CreatureDisplayID[3] = ci->GetModelByIdx(3);
+        //queryTemp.Stats.HpMulti = ci->ModHealth;
+        //queryTemp.Stats.EnergyMulti = ci->ModMana;
+        //queryTemp.Stats.Leader = ci->RacialLeader;
+        //for (uint32 i = 0; i < MAX_CREATURE_QUEST_ITEMS; ++i)
+        //    queryTemp.Stats.QuestItems[i] = 0;
+        //if (std::vector<uint32> const* items = sObjectMgr->GetCreatureQuestItemList(ci->Entry))
+        //    for (uint32 i = 0; i < MAX_CREATURE_QUEST_ITEMS; ++i)
+        //        if (i < items->size())
+        //            queryTemp.Stats.QuestItems[i] = (*items)[i];
+        //queryTemp.Stats.CreatureMovementInfoID = ci->movementId;
+        //queryTemp.Write();
+        //queryTemp.ShrinkToFit();
+
+        //WorldPacket response = queryTemp.Move();
+        //handler->GetSession()->SendPacket(&response);
+
+        handler->SendSysMessage("Done.");
+        return true;
+    }
+
+    static bool HandleNpcBotDebugSpellsCommand(ChatHandler* handler)
+    {
+        Unit* target = handler->getSelectedUnit();
+        if (!target)
+        {
+            handler->SendSysMessage("No target selected");
+            return true;
+        }
+
+        std::ostringstream ostr;
+        ostr << "Listing spells for " << target->GetName() << ':';
+        for (uint8 i = 0; i < CURRENT_MAX_SPELL; ++i)
+        {
+            if (Spell const* curSpell = target->GetCurrentSpell(CurrentSpellTypes(i)))
+            {
+                ostr << "\nSpell type " << uint32(i) << ":\n";
+                ostr << "Id: " << curSpell->GetSpellInfo()->Id << " State: " << curSpell->getState();
+            }
+        }
+
+        handler->SendSysMessage(ostr.view());
         return true;
     }
 
@@ -1929,7 +1988,7 @@ public:
                 ostr << "\n    0x" << std::hex << (state);
         }
 
-        handler->SendSysMessage(ostr.str());
+        handler->SendSysMessage(ostr.view());
         return true;
     }
 
@@ -1970,7 +2029,7 @@ public:
             if (subBots[i] > 0)
                 sstr << uint32(subBots[i]) << " bots in subgroup " << uint32(i + 1) << "\n";
 
-        handler->SendSysMessage(sstr.str());
+        handler->SendSysMessage(sstr.view());
         delete[] subBots;
         return true;
     }
@@ -2171,7 +2230,7 @@ public:
                 return true;
             }
 
-            std::list<Creature*> cBots = owner->GetBotMgr()->GetAllBotsByClass(bot_class);
+            std::vector<Creature*> cBots = owner->GetBotMgr()->GetAllBotsByClass(bot_class);
 
             if (cBots.empty())
             {
@@ -2331,7 +2390,7 @@ public:
                 return true;
             }
 
-            std::list<Creature*> cBots = owner->GetBotMgr()->GetAllBotsByClass(bot_class);
+            std::vector<Creature*> cBots = owner->GetBotMgr()->GetAllBotsByClass(bot_class);
 
             if (cBots.empty())
             {
@@ -3250,16 +3309,15 @@ public:
             return false;
         }
 
-        char* characterName_str = strtok((char*)charVal->c_str(), " ");
-        if (!characterName_str)
+        if (!charVal || charVal->empty())
             return false;
 
-        std::string characterName = characterName_str;
-        uint32 guidlow = (uint32)atoi(characterName_str);
+        Optional<uint32> guidlow = Bcore::StringTo<uint32>({ *charVal });
+        std::string characterName = std::move(*charVal);
 
         bool found = true;
         if (guidlow)
-            found = sCharacterCache->GetCharacterNameByGuid(ObjectGuid(HighGuid::Player, 0, guidlow), characterName);
+            found = sCharacterCache->GetCharacterNameByGuid(ObjectGuid::Create<HighGuid::Player>(*guidlow), characterName);
         else
             guidlow = sCharacterCache->GetCharacterGuidByName(characterName).GetCounter();
 
@@ -3272,14 +3330,14 @@ public:
 
         BotDataMgr::UpdateNpcBotData(bot->GetEntry(), NPCBOT_UPDATE_OWNER, &guidlow);
         NpcBotData const* bot_data = BotDataMgr::SelectNpcBotData(bot->GetEntry());
-        if (bot_data->shared_owners.contains(guidlow))
+        if (bot_data->shared_owners.contains(*guidlow))
         {
             NpcBotData::SharedOwnersContainer shared_owners_new = bot_data->shared_owners; //copy
-            shared_owners_new.erase(guidlow);
+            shared_owners_new.erase(*guidlow);
             BotDataMgr::UpdateNpcBotData(bot->GetEntry(), NPCBOT_UPDATE_SHARED_OWNERS, &shared_owners_new);
         }
 
-        handler->PSendSysMessage("{}'s new owner is {} (guidlow: {})", bot->GetName(), characterName, guidlow);
+        handler->PSendSysMessage("{}'s new owner is {} (guidlow: {})", bot->GetName(), characterName, *guidlow);
         return true;
     }
 
@@ -3398,16 +3456,15 @@ public:
             {
                 if (creatureLocale->Name.size() > localeIndex && !creatureLocale->Name[localeIndex].empty())
                 {
-                    botlist.emplace_back(id, std::string(creatureLocale->Name[localeIndex]), race);
+                    botlist.emplace_back(id, std::string_view{ creatureLocale->Name[localeIndex] }, race);
                     continue;
                 }
             }
 
-            std::string name = itr->second.Name;
-            if (name.empty())
+            if (itr->second.Name.empty())
                 continue;
 
-            botlist.emplace_back(id, std::move(name), race);
+            botlist.emplace_back(id, std::string_view{ itr->second.Name }, race);
         }
 
         if (botlist.empty())
@@ -3978,7 +4035,6 @@ public:
         });
 
         std::ostringstream ss;
-        const std::string free_str = is_free ? "free " : "";
         if (!found_bots.empty())
         {
             if (area_str)
@@ -4030,17 +4086,18 @@ public:
                 }
             }
 
+            const std::string_view free_str = is_free ? "free " : "";
             if (matched_bots.empty())
                 ss << "No " << free_str << "bots found!";
             else
             {
                 ss << "Found " << uint32(matched_bots.size()) << ' ' << free_str << "bots:";
-                for (std::string const& bstr : matched_bots)
+                for (std::string& bstr : matched_bots)
                     ss << std::move(bstr);
             }
         }
 
-        handler->SendSysMessage(ss.str());
+        handler->SendSysMessage(ss.view());
         return true;
     }
 
@@ -4074,7 +4131,7 @@ public:
         });
 
         std::ostringstream ss;
-        const std::string free_str = is_free ? "free " : "";
+        const std::string_view free_str = is_free ? "free " : "";
         if (!found_bots.empty())
             ss << "No " << free_str << "bots found!";
         else
@@ -4084,12 +4141,8 @@ public:
             for (Creature const* bot : found_bots)
             {
                 uint32 bot_level = uint32(bot->GetLevel());
-                std::string const& bot_class_str = bot_class_names[bot->GetBotClass()];
 
-                AreaTableEntry const* zone = sAreaTableStore.LookupEntry(bot->GetBotAI()->GetLastZoneId() ? bot->GetBotAI()->GetLastZoneId() : bot->GetZoneId());
-                std::string zone_name = zone ? zone->area_name[handler->GetSession() ? handler->GetSessionDbLocaleIndex() : 0] : "Unknown";
-
-                decltype(bot_class_names)::const_iterator cit = std::ranges::find(bot_class_names, bot_class_str);
+                decltype(bot_class_names)::const_iterator cit = std::ranges::find(bot_class_names, bot_class_names[bot->GetBotClass()]);
                 ASSERT(cit != bot_class_names.cend());
                 bot_count_by_class[std::distance(bot_class_names.cbegin(), cit)]++;
 
@@ -4115,7 +4168,7 @@ public:
             }
         };
 
-        handler->SendSysMessage(ss.str());
+        handler->SendSysMessage(ss.view());
         return true;
     }
 
@@ -4211,23 +4264,19 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        std::list<Creature*> bots;
+        std::vector<Creature*> bots;
         if (class_name)
         {
-            std::string cname(*class_name);
-            for (auto const c : cname)
+            if (!std::ranges::all_of(class_name.value(), [](char c) { return std::islower(c); }))
             {
-                if (!std::islower(c))
-                {
-                    handler->SendSysMessage("Bot class name must be in lower case!");
-                    return true;
-                }
+                handler->SendSysMessage("Bot class name must be in lower case!");
+                return true;
             }
 
-            uint8 bot_class = BotMgr::BotClassByClassName(cname);
+            uint8 bot_class = BotMgr::BotClassByClassName(*class_name);
             if (bot_class == BOT_CLASS_NONE)
             {
-                handler->PSendSysMessage("Unknown bot name or class {}!", cname);
+                handler->PSendSysMessage("Unknown bot name or class {}!", *class_name);
                 return true;
             }
 
@@ -4537,12 +4586,12 @@ public:
                         {
                             std::string ccolor, cname;
                             GetBotClassNameAndColor(i, ccolor, cname);
-                            std::string base_name = cre->GetName();
+                            std::string_view base_name = cre->GetName();
                             if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(cre->GetEntry()))
                                 if (creatureLocale->Name.size() > loc && !creatureLocale->Name[loc].empty())
                                     base_name = creatureLocale->Name[loc];
 
-                            handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name.c_str(), cre->GetEntry(), "|c" + ccolor + cname + "|r", uint32(cre->IsAlive()));
+                            handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name, cre->GetEntry(), "|c" + ccolor + cname + "|r", uint32(cre->IsAlive()));
                         }
                     }
                 }
@@ -4555,11 +4604,11 @@ public:
             Creature const* bot = BotDataMgr::FindBot(guid.GetEntry());
             std::string ccolor, cname;
             GetBotClassNameAndColor(bot ? bot->GetBotClass() : uint8(BOT_CLASS_NONE), ccolor, cname);
-            std::string base_name = bot ? bot->GetName() : "Unknown";
+            std::string_view base_name = bot ? std::string_view{ bot->GetName() } : std::string_view{ "Unknown" };
             if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(guid.GetEntry()))
                 if (creatureLocale->Name.size() > loc && !creatureLocale->Name[loc].empty())
                     base_name = creatureLocale->Name[loc];
-            handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name.c_str(), guid.GetEntry(), "|c" + ccolor + cname + "|r", bot ? uint32(bot->IsAlive()) : uint32(0));
+            handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name, guid.GetEntry(), "|c" + ccolor + cname + "|r", bot ? uint32(bot->IsAlive()) : uint32(0));
         }
 
         return true;
@@ -4635,7 +4684,7 @@ public:
             return false;
         }
 
-        std::string msg;
+        std::string_view msg;
         if (!owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_NO_CAST_LONG))
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_NO_CAST_LONG);
@@ -4663,7 +4712,7 @@ public:
             return false;
         }
 
-        std::string msg;
+        std::string_view msg;
         if (!owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_NO_CAST))
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_NO_CAST);
@@ -4691,7 +4740,7 @@ public:
             return false;
         }
 
-        std::string msg;
+        std::string_view msg;
         if (!owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_INACTION))
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_INACTION);
@@ -4748,7 +4797,7 @@ public:
             return false;
         }
 
-        std::string msg;
+        std::string_view msg;
         bool isWalking = owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_WALK);
         if (!isWalking)
         {
@@ -4777,7 +4826,7 @@ public:
             return false;
         }
 
-        std::string msg;
+        std::string_view msg;
         bool isNoGossipEnabled = owner->GetBotMgr()->GetBotMap()->begin()->second->GetBotAI()->HasBotCommandState(BOT_COMMAND_NOGOSSIP);
         if (!isNoGossipEnabled)
         {
@@ -4881,11 +4930,11 @@ public:
             return false;
         };
 
-        static auto return_success = [](ChatHandler* chandler, Variant<std::string, uint32> name_or_count) -> bool {
+        static auto return_success = [](ChatHandler* chandler, Variant<std::string_view, uint32> name_or_count) -> bool {
             if (name_or_count.holds_alternative<uint32>())
                 chandler->PSendSysMessage("Successfully unbound {} bot(s)", name_or_count.get<uint32>());
             else
-                chandler->PSendSysMessage("Successfully unbound {}", name_or_count.get<std::string>());
+                chandler->PSendSysMessage("Successfully unbound {}", name_or_count.get<std::string_view>());
             return true;
         };
 
