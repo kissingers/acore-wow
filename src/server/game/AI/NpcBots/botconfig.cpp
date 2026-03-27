@@ -266,11 +266,19 @@ public:
 
     void OnAfterConfigLoad(bool reload) override
     {
-        _initNpcbotsConfig(reload);
+        if (!_first_load)
+            _initNpcbotsConfig(reload);
     }
 
     static void ReloadConfig()
     {
+        if (_first_load)
+        {
+            _initNpcbotsConfig(false);
+            _first_load = false;
+            return;
+        }
+
         BOT_LOG_INFO("misc", "Re-Loading config settings...");
         sWorld->LoadConfigSettings(true);
         sMapMgr->InitializeVisibilityDistanceInfo();
@@ -278,6 +286,8 @@ public:
     }
 
 private:
+    inline static bool _first_load{ true };
+
     static void _initNpcbotsConfig(bool reload)
     {
         _loadConfig(reload);
