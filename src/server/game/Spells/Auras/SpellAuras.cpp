@@ -1331,6 +1331,9 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
                         if (target->IsPlayer())
                             target->ToPlayer()->RemoveSpellCooldown(20252, true);
                         break;
+                    case 98984:  //配合炉石脱战加入的自定义技能
+                        target->CombatStop();
+                        break;
                 }
                 break;
             case SPELLFAMILY_MAGE:
