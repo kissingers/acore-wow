@@ -90,35 +90,13 @@ CanAffectVictimSchools(Unit const* target, Schools... schools)
         return results;
     }
 
-    if (Creature const* creature = target->ToCreature())
+    for (uint8 i = SPELL_SCHOOL_NORMAL; i < MAX_SPELL_SCHOOL; ++i)
     {
-        if (SpellSchoolMask immune_mask = SpellSchoolMask(creature->GetCreatureTemplate()->SpellSchoolImmuneMask))
+        if (target->IsImmunedToDamageOrSchool(SpellSchoolMask(1ull << i)))
         {
-            for (uint8 i = SPELL_SCHOOL_NORMAL; i < MAX_SPELL_SCHOOL; ++i)
-            {
-                if (immune_mask & (1 << i))
-                {
-                    arr_iter_type ri = std::ranges::find(results, std::pair{ SpellSchools(i), true });
-                    if (ri != results.end())
-                        ri->second = false;
-                }
-            }
-        }
-    }
-
-    for (AuraEffect const* immune_effect : target->GetAuraEffectsByType(SPELL_AURA_SCHOOL_IMMUNITY))
-    {
-        if (SpellSchoolMask immune_mask = SpellSchoolMask(immune_effect->GetMiscValue()))
-        {
-            for (uint8 i = SPELL_SCHOOL_NORMAL; i < MAX_SPELL_SCHOOL; ++i)
-            {
-                if (immune_mask & (1 << i))
-                {
-                    arr_iter_type ri = std::ranges::find(results, std::pair{ SpellSchools(i), true });
-                    if (ri != results.end())
-                        ri->second = false;
-                }
-            }
+            arr_iter_type ri = std::ranges::find(results, std::pair{ SpellSchools(i), true });
+            if (ri != results.end())
+                ri->second = false;
         }
     }
     return results;
