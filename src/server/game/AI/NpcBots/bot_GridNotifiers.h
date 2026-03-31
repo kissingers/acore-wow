@@ -84,7 +84,7 @@ class ImmunityShieldDispelTargetCheck
             //    return false;
             if (!ai->IsInBotParty(u->GetVictim()))
                 return false;
-            if (!u->HasAuraWithMechanic(1<<MECHANIC_IMMUNE_SHIELD))
+            if (!u->HasAuraWithMechanic(1u<<MECHANIC_IMMUNE_SHIELD))
                 return false;
 
             if (!u->IsWithinLOSInMap(me, VMAP::ModelIgnoreFlags::M2, LINEOFSIGHT_ALL_CHECKS))
@@ -694,7 +694,7 @@ class CastingUnitCheck
             if (spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) && spellInfo->GetFirstRankSpell()->Id != 853) //hammer of justice
             {
                 if (u->GetTypeId() == TYPEID_UNIT &&
-                    (u->ToCreature()->HasMechanicTemplateImmunity(1ull << (MECHANIC_INTERRUPT - 1))))
+                    (u->ToCreature()->HasMechanicTemplateImmunity(1u << (MECHANIC_INTERRUPT - 1))))
                     return false;
 
                 for (uint8 i = CURRENT_FIRST_NON_MELEE_SPELL; i != CURRENT_AUTOREPEAT_SPELL; ++i)
@@ -725,7 +725,7 @@ class CastingUnitCheck
             if (silenceSpell)
             {
                 if (u->GetTypeId() == TYPEID_UNIT &&
-                    (u->ToCreature()->HasMechanicTemplateImmunity(1ull << (MECHANIC_SILENCE - 1))))
+                    (u->ToCreature()->HasMechanicTemplateImmunity(1u << (MECHANIC_SILENCE - 1))))
                     return false;
 
                 for (uint8 i = CURRENT_FIRST_NON_MELEE_SPELL; i != CURRENT_AUTOREPEAT_SPELL; ++i)
