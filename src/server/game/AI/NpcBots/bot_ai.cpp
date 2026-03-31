@@ -9375,7 +9375,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 });
             };
 
-            auto try_put_item = [=, &itemList, &idsList, this](uint8 bag, uint8 bag_slot) {
+            auto try_put_item = [=, &itemList, &idsList](uint8 bag, uint8 bag_slot) {
                 if (Item const* pItem = player->GetItemByPos(bag, bag_slot))
                 {
                     if (!std::ranges::any_of(einfo->ItemEntry, [=](uint32 eeid) { return eeid == pItem->GetEntry(); }) &&
