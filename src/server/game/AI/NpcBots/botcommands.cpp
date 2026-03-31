@@ -4593,7 +4593,7 @@ public:
                             if (creatureLocale->Name.size() > loc && !creatureLocale->Name[loc].empty())
                                 base_name = creatureLocale->Name[loc];
 
-                            handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name, bot->GetEntry(), nss.view(), uint32(bot->IsAlive()));
+                        handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name, bot->GetEntry(), nss.view(), uint32(bot->IsAlive()));
                     }
                 }
             }
