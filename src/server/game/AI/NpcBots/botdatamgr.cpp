@@ -985,7 +985,7 @@ void BotDataMgr::LoadNpcBots(bool spawn)
         for (uint32 bot_id : invalid_ids)
             ss << Bcore::ToString(bot_id) << ", ";
         ss << "\nFix your DB contents and retry";
-        ASSERT(false, ss.view().data());
+        ABORT(ss.str());
     };
 
     for (CreatureDataContainer::value_type const& kv : sObjectMgr->GetAllCreatureData())
@@ -1673,7 +1673,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
                         ss << '-';
                 }
                 ss << " is isolated!";
-                BOT_LOG_INFO("server.loading", "{}", ss.view());
+                BOT_LOG_INFO("server.loading", "{}", ss.str());
             }
         }
     });
