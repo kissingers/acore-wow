@@ -9187,7 +9187,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     const uint32 maxcounter = BOT_GOSSIP_MAX_ITEMS - 6; //unequip, unequip (gear bank), reset, current, transmog, back
                     std::ostringstream name;
 
-                    auto try_put_gossip = [player, slot, einfo, &name, &counter, this](uint8 bag, uint8 bag_slot, uint32 guidlow) {
+                    auto try_put_gossip = [player, slot, &name, &counter, this](uint8 bag, uint8 bag_slot, uint32 guidlow) {
                         if (Item const* pItem = player->GetItemByPos(bag, bag_slot); pItem && pItem->GetGUID().GetCounter() == guidlow)
                         {
                             _AddItemLink(player, pItem, name);
