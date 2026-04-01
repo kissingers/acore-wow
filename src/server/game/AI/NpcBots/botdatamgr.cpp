@@ -452,7 +452,7 @@ public:
             vec.reserve(WanderNode::GetWPMapsCount() * 20u);
 
         auto& [spawns_a, spawns_h, spawns_n] = spawns_all;
-        WanderNode::DoForAllWPs([map_id = map_id, &spawns_a, &spawns_h, &spawns_n](WanderNode const* wp) {
+        WanderNode::DoForAllWPs([map_id = map_id, &spawns_a = spawns_a, &spawns_h = spawns_h, &spawns_n = spawns_n](WanderNode const* wp) {
             MapEntry const* mapEntry = sMapStore.LookupEntry(wp->GetMapId());
             if ((map_id == -1) ? mapEntry->IsWorldMap() : (int32(mapEntry->MapID) == map_id))
             {

@@ -107,6 +107,10 @@ static constexpr size_t SOUND_SETS_COUNT = 3;
 static constexpr size_t GENDERS_COUNT = 2;
 static constexpr size_t RACES_COUNT = 10;
 
+#ifndef MAX_RACES
+ #define MAX_RACES 12
+#endif // !MAX_RACES
+
 // model ids with different sound sets tied to them
 enum SoundSetModels : uint32
 {
@@ -236,8 +240,7 @@ static char const* get_class_name(uint8 class_)
     }
 };
 
-
-enum class PlayerVisuals : size_t
+enum class PlayerVisuals
 {
     Skins,
     Faces,
@@ -357,7 +360,7 @@ inline static uint32 GetMaxPlayerVisual(Races race, Gender gender, PlayerVisuals
 static bool IsValidVisual(uint8 race, uint8 gender, uint8 skin, uint8 face, uint8 hairs, uint8 hairc, uint8 features)
 {
     return (
-        race < RACES_COUNT &&
+        race < MAX_RACES &&
         gender < GENDERS_COUNT &&
         skin <= GetMaxPlayerVisual(Races(race), Gender(gender), PlayerVisuals::Skins) &&
         face <= GetMaxPlayerVisual(Races(race), Gender(gender), PlayerVisuals::Faces) &&
