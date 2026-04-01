@@ -273,13 +273,13 @@ static consteval uint8 GetMaxVisual()
 
 #if !defined(PLAYER_VIS_ARRS) && !defined(PLAYER_VIS_ARR)
 #define PLAYER_VIS_ARR(r,g) \
-    (GetMaxVisual<PlayerVisuals::Skins, r, g>()), \
-    (GetMaxVisual<PlayerVisuals::Faces, r, g>()), \
-    (GetMaxVisual<PlayerVisuals::HairStyles, r, g>()), \
-    (GetMaxVisual<PlayerVisuals::HairColors, r, g>()), \
-    (GetMaxVisual<PlayerVisuals::Features, r, g>())
+    { GetMaxVisual<PlayerVisuals::Skins, r, g>(), \
+    GetMaxVisual<PlayerVisuals::Faces, r, g>(), \
+    GetMaxVisual<PlayerVisuals::HairStyles, r, g>(), \
+    GetMaxVisual<PlayerVisuals::HairColors, r, g>(), \
+    GetMaxVisual<PlayerVisuals::Features, r, g>() }
 
-#define PLAYER_VIS_ARRS(r) PLAYER_VIS_ARR(r, GENDER_MALE), PLAYER_VIS_ARR(r, GENDER_FEMALE)
+#define PLAYER_VIS_ARRS(r) { PLAYER_VIS_ARR(r, GENDER_MALE), PLAYER_VIS_ARR(r, GENDER_FEMALE) }
 static constinit const uint8 MAX_PLAYER_VISUALS[][GENDERS_COUNT][5] {
     PLAYER_VIS_ARRS(RACE_NONE),
     PLAYER_VIS_ARRS(RACE_HUMAN),
