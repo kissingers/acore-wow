@@ -861,7 +861,7 @@ namespace lfg
         //npcbot
         const uint32 PLAYER_ROLE_ANY = PLAYER_ROLE_TANK | PLAYER_ROLE_HEALER | PLAYER_ROLE_DAMAGE;
         auto try_generate_fake_dungeon_bots = [gguid, isContinue, &dungeons, this](LfgRoleCheck& role_check) {
-            if (BotCfg::IsNpcBotDungeonFinderBotGenerationEnabled() && role_check.roles.size() < std::size_t(MAXGROUPSIZE))
+            if (BotCfg::IsNpcBotModEnabled() && BotCfg::IsNpcBotDungeonFinderBotGenerationEnabled() && role_check.roles.size() < std::size_t(MAXGROUPSIZE))
             {
                 const uint32 fake_entry = BOT_GIVER_ENTRY;
                 ObjectGuid::LowType counter = 1;
@@ -947,7 +947,7 @@ namespace lfg
             UpdateRoleCheck(gguid, guid, roles);
         }
         //npcbot
-        else if (BotCfg::IsNpcBotDungeonFinderBotGenerationEnabled())
+        else if (BotCfg::IsNpcBotModEnabled() && BotCfg::IsNpcBotDungeonFinderBotGenerationEnabled())
         {
             LfgRoleCheck& roleCheck = RoleChecksStore[gguid];
             roleCheck.roles.clear();
