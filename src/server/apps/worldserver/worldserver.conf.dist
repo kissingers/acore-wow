@@ -613,6 +613,15 @@ AllowLoggingIPAddressesInDatabase = 1
 Allow.IP.Based.Action.Logging = 0
 
 #
+#    LogSpamReports
+#        Description: Allow logging spam reports from players in the chat, mail or calendar into the database.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+#
+
+LogSpamReports = 1
+
+#
 #  Appender config values: Given an appender "name"
 #    Appender.name
 #        Description: Defines 'where to log'.
@@ -5295,7 +5304,14 @@ NpcBot.OwnershipExpireMode = 0
 #                     0 - (Disabled)
 
 NpcBot.EnrageOnDismiss = 1
- 
+
+#
+#    NpcBot.DungeonBots.Enable
+#        Description: Allow autogenerating bots for non-full LFG groups entering non-raid dungeons
+#        Default:     0 - (NpcBot.DungeonBots.Enable)
+
+NpcBot.DungeonBots.Enable = 0
+
 #
 #    NpcBot.WanderingBots.Continents.Count
 #        Description: Desired number of free wandering bots to generate. Wandering bots roam

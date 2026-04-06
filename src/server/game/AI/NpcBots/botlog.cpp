@@ -49,6 +49,9 @@ void BotLogger::Log(uint16 log_type, Creature const* bot, NPCBots::LoggableArgum
     if (!BotCfg::IsNpcBotLogEnabled())
         return;
 
+    if (bot->IsSummon() && !((1ull<<(log_type-1)) & NPCBOT_LOG_MASK_DUNGEON_BOT))
+        return;
+
     BotLogImpl(log_type, bot, int32(bot->GetBotAI() ? bot->GetBotAI()->GetBotOwnerGuid() : -1), std::forward<decltype(params)>(params)...);
 }
 
@@ -66,7 +69,7 @@ void BotLogger::Log(uint16 log_type, uint32 entry,  NPCBots::LoggableArguments a
             std::stringstream ss;
             using compounder = int[];
             (void)compounder { 0, ((void)(ss << ' ' << params), 0) ... };
-            BOT_LOG_DEBUG("npcbots", "Logging unregistered bot entry {}: type {} params:{}", entry, log_type, ss.view());
+            BOT_LOG_DEBUG("npcbots", "Logging unregistered bot entry {}: type {} params:{}", entry, log_type, ss.str());
         }
         BotLogImpl(log_type, entry, -1, -1, -1, -1, std::forward<decltype(params)>(params)...);
     }
@@ -80,4 +83,4 @@ template void BotLogger::Log(uint16, Creature const*, uint32&&, uint32&&, uint32
 template void BotLogger::Log(uint16, Creature const*, uint32&&, uint32&&, uint32&&, uint32&&, uint32&&);
 template void BotLogger::Log(uint16, uint32);
 template void BotLogger::Log(uint16, uint32, std::string_view&&);
-template void BotLogger::Log(uint16, uint32, std::string&, std::string&, std::string&, std::string&, std::string&);
+template void BotLogger::Log(uint16, uint32, std::string_view&&, std::string_view&&, std::string_view&&, std::string_view&&, std::string_view&&);

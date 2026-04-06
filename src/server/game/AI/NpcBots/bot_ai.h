@@ -176,7 +176,6 @@ public:
     GossipOptionIcon GetRoleIcon(uint32 role) const;
     static uint32 GetRoleString(uint32 role);
     void ToggleRole(uint32 role, bool force);
-    static uint32 DefaultRolesForClass(uint8 m_class, uint8 spec);
     bool IsTank(Unit const* unit = nullptr) const;
     bool IsOffTank(Unit const* unit = nullptr) const;
 
@@ -333,22 +332,10 @@ public:
     void ReInitFaction() { InitFaction(); }
     void SetSpec(uint8 spec, bool activate = true);
     uint8 GetSpec() const;
-    static uint8 SelectSpecForClass(uint8 m_class);
-    static uint32 TextForSpec(uint8 spec);
-    static bool IsValidSpecForClass(uint8 m_class, uint8 spec);
-
-    static bool IsBotClassMask(uint8 m_class, uint32 class_mask) { return !!((1ull << m_class) & class_mask); }
-    static bool IsMeleeClass(uint8 m_class);
-    static bool IsTankingClass(uint8 m_class);
-    static bool IsBlockingClass(uint8 m_class);
-    static bool IsCastingClass(uint8 m_class);
-    static bool IsHealingClass(uint8 m_class);
-    static bool IsHumanoidClass(uint8 m_class);
-    static bool IsHeroExClass(uint8 m_class);
 
     AoeSpotsVec const& GetAoeSpots() const;
     static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots);
-    void CalculateAoeSafeSpots(Unit* target, float maxdist, AoeSafeSpotsVec& safespots) const;
+    AoeSafeSpotsVec CalculateAoeSafeSpots(Unit* target, float maxdist) const;
 
     //Pet stuff
     static uint32 GetPetOriginalEntry(uint32 entry);
@@ -785,22 +772,25 @@ private:
 
     struct BotSpell
     {
-        BotSpell() : spellId(0), cooldown(0), enabled(true) {}
+        BotSpell() = default;
         BotSpell(BotSpell const&) = delete;
         BotSpell(BotSpell&&) = delete;
         BotSpell& operator=(BotSpell const&) = delete;
         BotSpell& operator=(BotSpell&&) = delete;
-        uint32 spellId;
-        uint32 cooldown;
-        bool enabled;
+        uint32 spellId = 0;
+        uint32 cooldown = 0;
+        bool enabled = true;
     };
 
     int32 _stats[BOT_INVENTORY_SIZE][MAX_BOT_ITEM_MOD]{};
-    Item* _equips[BOT_INVENTORY_SIZE]{};
+    std::array<Item*, BOT_INVENTORY_SIZE> _equips{};
 
 public:
-    using BotSpellMap = std::unordered_map<uint32 /*firstrankspellid*/, BotSpell* /*spell*/>;
+    using BotSpellMap = std::unordered_map<uint32 /*firstrankspellid*/, BotSpell /*spell*/>;
     BotSpellMap const& GetSpellMap() const { return _spells; }
+
+protected:
+    BotSpellMap& GetSpellMap() { return _spells; }
 
 private:
     BotSpellMap _spells;
