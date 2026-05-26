@@ -118,6 +118,7 @@ struct boss_moroes : public BossAI
         BossAI::Reset();
         DoCastSelf(SPELL_DUAL_WIELD, true);
         _vanished = false;
+        me->SetImmuneToAll(false);
 
         InitializeGuests();
 
