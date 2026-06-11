@@ -44,9 +44,6 @@ void WaypointMovementGenerator<Creature>::LoadPath(Creature* creature)
         }
         case PathSource::SMART_WAYPOINT_MGR:
         {
-            if (!path_id)
-                path_id = creature->GetEntry();
-
             i_path = sSmartWaypointMgr->GetPath(path_id);
             break;
         }
