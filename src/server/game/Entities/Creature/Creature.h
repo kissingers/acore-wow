@@ -406,6 +406,9 @@ public:
     void SetTextRepeatId(uint8 textGroup, uint8 id);
     void ClearTextRepeatGroup(uint8 textGroup);
 
+    bool IsTextOnCooldown(uint8 textGroup) const;
+    void SetTextCooldown(uint8 textGroup, uint32 cooldownMs);
+
     bool IsFreeToMove();
     static constexpr uint32 MOVE_CIRCLE_CHECK_INTERVAL = 3000;
     static constexpr uint32 MOVE_BACKWARDS_CHECK_INTERVAL = 2000;
@@ -622,6 +625,7 @@ private:
     Spell const* _focusSpell;   ///> Locks the target during spell cast for proper facing
 
     CreatureTextRepeatGroup m_textRepeat;
+    std::unordered_map<uint8, uint32> m_textCooldowns; // groupID -> expiry time (s)
 
     bool _isMissingSwimmingFlagOutOfCombat;
 

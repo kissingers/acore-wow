@@ -230,13 +230,10 @@ public:
             return instance->GetBossState(DATA_MAJORDOMO_EXECUTUS) != DONE;
         }
 
-        void KilledUnit(Unit* victim) override
-        {
-            if (roll_chance_i(25) && victim->IsPlayer())
-            {
-                Talk(SAY_SLAY);
-            }
-        }
+    void KilledUnit(Unit* victim) override
+    {
+        Talk(SAY_SLAY, victim);
+    }
 
         void JustEngagedWith(Unit* /*attacker*/) override
         {

@@ -219,13 +219,10 @@ public:
             me->SetFacingTo(DEATH_ORIENTATION);
         }
 
-        void KilledUnit(Unit* victim) override
-        {
-            if (roll_chance_i(25) && victim->IsPlayer())
-            {
-                Talk(SAY_KILL);
-            }
-        }
+    void KilledUnit(Unit* victim) override
+    {
+        Talk(SAY_KILL, victim);
+    }
 
         void AttackStart(Unit* target) override
         {
