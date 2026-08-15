@@ -1750,8 +1750,8 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
                     {
                         BOT_LOG_INFO("npcbots", "[Already running 2] Found running non-full BG {} instance {}. Not generating bots: queuing group or player (leader {}) CAN join existing BG",
                             uint32(bgTypeId), real_bg->GetInstanceID(), groupLeader->GetGUID().GetCounter());
+                        return true;
                     }
-                    return true;
                 }
             }
         }
