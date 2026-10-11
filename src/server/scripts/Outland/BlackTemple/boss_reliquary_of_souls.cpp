@@ -137,7 +137,6 @@ public:
         {
             BossAI::Reset();
             me->SetStandState(UNIT_STAND_STATE_SLEEP);
-            me->SetReactState(REACT_PASSIVE);
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -201,15 +200,6 @@ public:
                         }, i * 1200ms);
                 }
             }, 8s);
-        }
-
-        // IMMUNE_TO_PC keeps every threat reference offline, so engage off the combat reference instead.
-        void JustEnteredCombat(Unit* who) override
-        {
-            if (IsEngaged())
-                return;
-
-            EngagementStart(who);
         }
 
         void JustEngagedWith(Unit* who) override
