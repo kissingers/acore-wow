@@ -255,7 +255,7 @@ struct boss_kiljaeden : public BossAI
     {
         _phase = PHASE_NORMAL;
         DoCastSelf(SPELL_KNOCKBACK, true);
-        DoCastSelf(SPELL_SWAT, true);
+        //DoCastSelf(SPELL_SWAT, true);
 
         ScheduleHealthCheckEvent(85, [&]{
             _phase = PHASE_DARKNESS;
