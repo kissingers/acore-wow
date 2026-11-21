@@ -59,10 +59,11 @@ ObjectData const gameObjectData[] =
 
 DoorData const doorData[] =
 {
-    { GO_MASTERS_TERRACE_DOOR,  DATA_NIGHTBANE, DOOR_TYPE_ROOM  },
-    { GO_MASTERS_TERRACE_DOOR2, DATA_NIGHTBANE, DOOR_TYPE_ROOM  },
-    { GO_NETHERSPACE_DOOR,      DATA_MALCHEZAAR, DOOR_TYPE_ROOM },
-    { 0,                        0,              DOOR_TYPE_ROOM  }
+    { GO_MASTERS_TERRACE_DOOR,    DATA_NIGHTBANE,   DOOR_TYPE_ROOM    },
+    { GO_MASTERS_TERRACE_DOOR2,   DATA_NIGHTBANE,   DOOR_TYPE_ROOM    },
+    { GO_NETHERSPACE_DOOR,        DATA_MALCHEZAAR,  DOOR_TYPE_ROOM    },
+    { GO_GAMESMAN_HALL_EXIT_DOOR, DATA_CHESS_EVENT, DOOR_TYPE_PASSAGE },
+    { 0,                          0,                DOOR_TYPE_ROOM    }
 };
 
 class instance_karazhan : public InstanceMapScript
@@ -92,6 +93,18 @@ public:
             _chessTeam = TEAM_NEUTRAL;
             _chessGamePhase = CHESS_PHASE_NOT_STARTED;
             _chessEvent = NOT_STARTED;
+        }
+
+        void Load(char const* data) override
+        {
+            InstanceScript::Load(data);
+
+            // After a won game Medivh only offers the free PvP mode
+            if (GetBossState(DATA_CHESS_EVENT) == DONE)
+            {
+                _chessEvent = DONE;
+                _chessGamePhase = CHESS_PHASE_PVE_FINISHED;
+            }
         }
 
         void OnCreatureCreate(Creature* creature) override
@@ -251,7 +264,15 @@ public:
                             }
                             break;
                         case DONE:
-                            HandleGameObject(m_uiGamesmansExitDoor, true);
+                            // No boss AI moves chess off TO_BE_DECIDED, where SetBossState skips the save and doors
+                            if (GetBossState(DATA_CHESS_EVENT) == TO_BE_DECIDED)
+                                SetBossState(DATA_CHESS_EVENT, NOT_STARTED);
+
+                            // Also reached when a PvP game ends; credit only the first win
+                            if (SetBossState(DATA_CHESS_EVENT, DONE))
+                                if (Creature* medivh = instance->GetCreature(_echoOfMedivhGUID))
+                                    instance->UpdateEncounterState(ENCOUNTER_CREDIT_KILL_CREATURE, NPC_CHESS_STATUS_BAR, medivh);
+
                             instance->ToInstanceMap()->PermBindAllPlayers();
                             break;
                         }
@@ -357,9 +378,6 @@ public:
                         go->SetGameObjectFlag(GO_FLAG_LOCKED);
                     else
                         go->RemoveGameObjectFlag(GO_FLAG_LOCKED);
-                    break;
-                case GO_GAMESMAN_HALL_EXIT_DOOR:
-                    m_uiGamesmansExitDoor = go->GetGUID();
                     break;
                 case GO_SIDE_ENTRANCE_DOOR:
                     if (GetBossState(DATA_OPERA_PERFORMANCE) == DONE)
@@ -487,7 +505,6 @@ public:
         ObjectGuid m_uiNightBaneGUID;
         ObjectGuid m_uiLibraryDoor;                                 // Door at Shade of Aran
         ObjectGuid m_uiMassiveDoor;                                 // Door at Netherspite
-        ObjectGuid m_uiGamesmansExitDoor;                           // Door after Chess
         ObjectGuid ImageGUID;
         ObjectGuid DustCoveredChest;
         ObjectGuid m_uiRelayGUID;
