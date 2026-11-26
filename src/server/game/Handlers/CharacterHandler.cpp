@@ -218,7 +218,7 @@ bool LoginQueryHolder::Initialize()
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PET_SLOTS, stmt);
 
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_PET_AUTOCAST);
-    stmt->SetData(0, rawGUID);
+    stmt->SetData(0, lowGuid);
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_PET_AUTOCAST, stmt);
 
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_ACHIEVEMENT_OFFLINE_UPDATES);
